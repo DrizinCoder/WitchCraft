@@ -1,4 +1,4 @@
-package Cards
+package main
 
 import "fmt"
 
