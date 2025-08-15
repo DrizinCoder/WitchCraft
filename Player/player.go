@@ -7,11 +7,11 @@ type Player struct {
 	Password string
 }
 
-func New_Player(ID int, userName string, login string, password string) *Player {
+func New_Player(id int, userName string, login string, password string) *Player {
 	return &Player{
+		ID:       id,
 		UserName: userName,
 		Login:    login,
 		Password: password,
 	}
 }
-
