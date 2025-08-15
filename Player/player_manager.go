@@ -36,6 +36,18 @@ func (m *Manager) Create_Player(name string, login string, password string) *Pla
 	return player
 }
 
+func (m *Manager) Login(login string, password string) (*Player, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, p := range m.Players {
+		if p.Login == login && p.Password == password {
+			return p, nil
+		}
+	}
+	return nil, errors.New("Invalid Credetials")
+}
+
 func (m *Manager) Search_Player(id int) (*Player, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
