@@ -1,4 +1,4 @@
-package player
+package Player
 
 import "WitchCraft/Cards"
 

@@ -4,11 +4,14 @@ package main
 
 import (
 	"WitchCraft/Cards"
+	"WitchCraft/Player"
 	"fmt"
 )
 
 func main() {
 	s := Cards.NewStock()
+	m := Player.NewManager()
+
 	// Cartas principais
 	s.CreateCard("The Hunter", 50, 100, Cards.GOLD)
 	s.CreateCard("Smoker", 70, 80, Cards.SILVER)
@@ -36,13 +39,12 @@ func main() {
 	exibir(s.Deck)
 
 	fmt.Println("-----------------------------------------------------------------------")
-
-	pack, _ := s.GeneratePack()
-
-	fmt.Println("=-----------------------------------------------------------------------=")
-
+	m.Create_Player("Guilherme", "Drizin", "123")
+	player, _ := m.Login("Drizin", "123")
+	pack, _ := m.Open_pack(player.ID, s)
 	exibir(pack)
-
+	fmt.Println("=---------------------------------------------------------------------=")
+	exibir(player.Cards)
 	fmt.Println("-----------------------------------------------------------------------")
 
 	exibir(s.Deck)

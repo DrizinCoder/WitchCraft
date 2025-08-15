@@ -1,6 +1,7 @@
-package player
+package Player
 
 import (
+	"WitchCraft/Cards"
 	"errors"
 	"sync"
 )
@@ -58,4 +59,15 @@ func (m *Manager) Search_Player(id int) (*Player, error) {
 		}
 	}
 	return nil, errors.New("User not found")
+}
+
+func (m *Manager) Open_pack(PlayerId int, stock *Cards.Stock) ([]*Cards.Card, error) {
+
+	player, _ := m.Search_Player(PlayerId)
+
+	pack, _ := stock.GeneratePack()
+
+	player.Cards = append(player.Cards, pack...)
+
+	return pack, nil
 }
