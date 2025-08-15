@@ -1,4 +1,4 @@
-package main
+package Cards
 
 import "fmt"
 
@@ -51,9 +51,4 @@ func (c *Card) Hit() {
 	fmt.Printf("A carta %s deu %d de dano\nSua Raridade é: %s\n", c.Name, c.Power, c.Rarity)
 }
 
-func main() {
-	p := New_Card(1, "The Hunter", 50, 100, GOLD)
-	p.Hit()
-	a := New_Card(1, "Smoker", 70, 50, DIAMOND)
-	a.Hit()
-}
+

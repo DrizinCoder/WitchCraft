@@ -1,4 +1,4 @@
-package main
+package Cards
 
 import (
 	"errors"
@@ -55,11 +55,18 @@ func (s *Stock) GeneratePack() ([]*Card, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	pack := make([]*Card, 5)
-	for _, c := range s.Deck[:5] {
-		pack = append(pack, c)
-		s.RemoveCard(c.ID)
+	if len(s.Deck) < 5 {
+		return nil, errors.New("não há cartas suficientes no estoque")
 	}
+
+	pack := make([]*Card, 0, 5)
+	toRemove := s.Deck[:5]
+
+	for _, c := range toRemove {
+		pack = append(pack, c)
+	}
+
+	s.Deck = s.Deck[5:]
 
 	return pack, nil
 }

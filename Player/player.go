@@ -14,3 +14,4 @@ func New_Player(ID int, userName string, login string, password string) *Player 
 		Password: password,
 	}
 }
+
