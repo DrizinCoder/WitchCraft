@@ -36,3 +36,15 @@ func (m *Match_Manager) CreateMatch(player1 *Player.Player, player2 *Player.Play
 	return match
 
 }
+
+func (m *Match) Start() {
+	m.State = RUNNING
+}
+
+func (m *Match) Finish() {
+	m.State = FINISHED
+}
+
+func (m *Match) NextTurn() {
+	m.Turn = 3 - m.Turn
+}

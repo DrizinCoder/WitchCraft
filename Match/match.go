@@ -60,15 +60,3 @@ func (mt MatchType) String() string {
 		return "unknown"
 	}
 }
-
-func (m *Match) Start() {
-	m.State = RUNNING
-}
-
-func (m *Match) Finish() {
-	m.State = FINISHED
-}
-
-func (m *Match) NextTurn() {
-	m.Turn = 3 - m.Turn
-}
