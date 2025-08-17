@@ -99,7 +99,7 @@ func (m *Match_Manager) Enqueue(val Player.Player) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.match_queue = append(m.match_queue, val)
-	println("Empilhando jogador")
+	println("Empilhando jogador" + val.UserName)
 }
 
 func (m *Match_Manager) Dequeue() (Player.Player, error) {

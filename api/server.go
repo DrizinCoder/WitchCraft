@@ -2,6 +2,7 @@ package api
 
 import (
 	"WitchCraft/Cards"
+	match "WitchCraft/Match"
 	"WitchCraft/Player"
 	"encoding/json"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 
 var playerManager = Player.NewManager()
 var stock = Cards.NewStock()
+var matchManager = match.NewMatchManager()
 
 func Setup() {
 
@@ -23,6 +25,9 @@ func Setup() {
 	http.HandleFunc("/player/login", loginPlayerHlander)
 	http.HandleFunc("/player/openpack", openPackHandler)
 	http.HandleFunc("/player/getplayer", getPlayerHandler)
+	http.HandleFunc("/player/enqueue", enqueue)
+
+	go matchManager.Match_Making()
 
 	http.ListenAndServe(":8080", nil)
 }
@@ -115,6 +120,28 @@ func getPlayerHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(player)
 }
 
+func enqueue(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		PlayerID int `json:"id"`
+	}
+
+	json.NewDecoder(r.Body).Decode(&req)
+
+	player, err := playerManager.Search_Player(req.PlayerID)
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+	}
+
+	matchManager.Enqueue(*player)
+}
+
 /*
 ---oq falta implementar---
 
@@ -128,6 +155,8 @@ curl -X POST -d '{"username":"Gui","login":"gui123","password":"123"}' http://lo
 curl -X POST -d '{"login":"gui123","password":"123"}' http://localhost:8080/player/login
 
 curl -X POST -d '{"id":1}' http://localhost:8080/player/openpack
+
+curl -X POST -d '{"id":1}' http://localhost:8080/player/enqueue
 
 curl -X GET -d '{"id":1}' http://localhost:8080/player/getplayer
 */
