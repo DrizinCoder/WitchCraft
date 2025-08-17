@@ -42,20 +42,42 @@ func (m *Match_Manager) CreateMatch(player1 *Player.Player, player2 *Player.Play
 
 }
 
-func (m *Match) Start() {
-	m.State = RUNNING
+func (m *Match_Manager) Start(matchID int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, a := range m.Matches {
+		if a.ID == matchID {
+			a.State = RUNNING
+		}
+	}
 }
 
-func (m *Match) Finish() {
-	m.State = FINISHED
+func (m *Match_Manager) Finish(matchID int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, a := range m.Matches {
+		if a.ID == matchID {
+			a.State = FINISHED
+		}
+	}
 }
 
 func (m *Match) NextTurn() {
 	m.Turn = 3 - m.Turn
 }
 
-func (m *Match) Match_Making() {
+func (m *Match_Manager) Match_Making() {
+	for {
+		if len(m.match_queue) >= 2 {
+			player1, _ := m.Dequeue()
+			player2, _ := m.Dequeue()
 
+			match := m.CreateMatch(&player1, &player2, NORMAL, WAITING)
+			m.Start(match.ID)
+		}
+	}
 }
 
 func (m *Match_Manager) Enqueue(val Player.Player) {
