@@ -4,13 +4,16 @@ package main
 
 import (
 	"WitchCraft/Cards"
+	match "WitchCraft/Match"
 	"WitchCraft/Player"
 	"fmt"
+	"time"
 )
 
 func main() {
 	s := Cards.NewStock()
 	m := Player.NewManager()
+	t := match.NewMatchManager()
 
 	// Cartas principais
 	s.CreateCard("The Hunter", 50, 100, Cards.GOLD)
@@ -48,6 +51,21 @@ func main() {
 	fmt.Println("-----------------------------------------------------------------------")
 
 	exibir(s.Deck)
+
+	m.Create_Player("Alana", "nane0476", "345")
+	player2, _ := m.Login("nane0476", "345")
+	pack2, _ := m.Open_pack(player2.ID, s)
+	fmt.Println("=---------------------------------------------------------------------=")
+	fmt.Println("=---------------------------------------------------------------------=")
+	exibir(pack2)
+
+	go t.Match_Making()
+
+	go t.Enqueue(*player)
+	go t.Enqueue(*player2)
+
+	time.Sleep(1 * time.Second)
+
 }
 
 func exibir(s []*Cards.Card) {

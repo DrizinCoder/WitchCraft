@@ -4,6 +4,7 @@ import (
 	"WitchCraft/Player"
 	"errors"
 	"sync"
+	"time"
 )
 
 type Queue []Player.Player
@@ -60,6 +61,7 @@ func (m *Match_Manager) Finish(matchID int) {
 	for i := range m.Matches {
 		if m.Matches[i].ID == matchID {
 			m.Matches[i].State = FINISHED
+			//Lembrar que ainda tem que tirar a partida finalizada da lista de matches ativos
 		}
 	}
 }
@@ -70,7 +72,9 @@ func (m *Match_Manager) NextTurn(matchID int) {
 
 	for i := range m.Matches {
 		if m.Matches[i].ID == matchID {
+			println("antes", m.Matches[i].Turn)
 			m.Matches[i].Turn = 3 - m.Matches[i].Turn
+			println("depois", m.Matches[i].Turn)
 		}
 	}
 
@@ -87,6 +91,9 @@ func (m *Match_Manager) Match_Making() {
 
 			match := m.CreateMatch(&player1, &player2, NORMAL, WAITING)
 			m.Start(match.ID)
+			println("The game Start!")
+		} else {
+			time.Sleep(50 * time.Millisecond)
 		}
 	}
 }
@@ -95,6 +102,7 @@ func (m *Match_Manager) Enqueue(val Player.Player) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.match_queue = append(m.match_queue, val)
+	println("Empilhando jogador")
 }
 
 func (m *Match_Manager) Dequeue() (Player.Player, error) {
@@ -106,5 +114,6 @@ func (m *Match_Manager) Dequeue() (Player.Player, error) {
 
 	val := (m.match_queue)[0]
 	m.match_queue = (m.match_queue)[1:]
+	println("removendo jogador")
 	return val, nil
 }
