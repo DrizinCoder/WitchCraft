@@ -102,7 +102,7 @@ func createPlayerHandler(msg Message, encoder *json.Encoder) {
 func loginPlayerHlander(msg Message, encoder *json.Encoder) {
 
 	type req struct {
-		Login    string `json:"username"`
+		Login    string `json:"login"`
 		Password string `json:"password"`
 	}
 
