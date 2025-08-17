@@ -72,9 +72,7 @@ func (m *Match_Manager) NextTurn(matchID int) {
 
 	for i := range m.Matches {
 		if m.Matches[i].ID == matchID {
-			println("antes", m.Matches[i].Turn)
 			m.Matches[i].Turn = 3 - m.Matches[i].Turn
-			println("depois", m.Matches[i].Turn)
 		}
 	}
 

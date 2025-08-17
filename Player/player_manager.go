@@ -3,6 +3,7 @@ package Player
 import (
 	"WitchCraft/Cards"
 	"errors"
+	"fmt"
 	"sync"
 )
 
@@ -53,7 +54,9 @@ func (m *Manager) Search_Player(id int) (*Player, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	fmt.Println("Buscando player ID:", id)
 	for _, p := range m.Players {
+		fmt.Println("Comparando com:", p.ID)
 		if p.ID == id {
 			return p, nil
 		}
@@ -63,9 +66,15 @@ func (m *Manager) Search_Player(id int) (*Player, error) {
 
 func (m *Manager) Open_pack(PlayerId int, stock *Cards.Stock) ([]*Cards.Card, error) {
 
-	player, _ := m.Search_Player(PlayerId)
+	player, err := m.Search_Player(PlayerId)
+	if err != nil {
+		return nil, err
+	}
 
-	pack, _ := stock.GeneratePack()
+	pack, err := stock.GeneratePack()
+	if err != nil {
+		return nil, err
+	}
 
 	player.Cards = append(player.Cards, pack...)
 
