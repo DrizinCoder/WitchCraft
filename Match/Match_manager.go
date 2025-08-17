@@ -2,12 +2,16 @@ package match
 
 import (
 	"WitchCraft/Player"
+	"errors"
 	"sync"
 )
 
+type Queue []Player.Player
+
 type Match_Manager struct {
-	mu      sync.Mutex
-	Matches []*Match
+	mu          sync.Mutex
+	match_queue Queue
+	Matches     []*Match
 }
 
 var nextID int
@@ -22,7 +26,8 @@ func generateID() int {
 
 func NewMatchManager() *Match_Manager {
 	return &Match_Manager{
-		Matches: make([]*Match, 0),
+		Matches:     make([]*Match, 0),
+		match_queue: make(Queue, 0),
 	}
 }
 
@@ -48,3 +53,24 @@ func (m *Match) Finish() {
 func (m *Match) NextTurn() {
 	m.Turn = 3 - m.Turn
 }
+
+func (q *Queue) Enqueue(val Player.Player) {
+	*q = append(*q, val)
+}
+
+func (q *Queue) Dequeue() (Player.Player, error) {
+	if len(*q) == 0 {
+		return Player.Player{}, errors.New("empty queue")
+	}
+
+	val := (*q)[0]
+	*q = (*q)[1:]
+	return val, nil
+}
+
+/*
+- MATCH MAKING POR FILA
+- JOGADORES ENTRAM NA FILA E MARCAR COMO 'DISPONIVEL_PARA_JOGO'
+- MATCH_MANAGER ESPERA 2 jogadores prontos para criar partida
+- Considerar jogos Normal game e ranked game
+*/
