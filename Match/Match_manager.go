@@ -54,17 +54,25 @@ func (m *Match) NextTurn() {
 	m.Turn = 3 - m.Turn
 }
 
-func (q *Queue) Enqueue(val Player.Player) {
-	*q = append(*q, val)
+func (m *Match) Match_Making() {
+
 }
 
-func (q *Queue) Dequeue() (Player.Player, error) {
-	if len(*q) == 0 {
+func (m *Match_Manager) Enqueue(val Player.Player) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.match_queue = append(m.match_queue, val)
+}
+
+func (m *Match_Manager) Dequeue() (Player.Player, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if len(m.match_queue) == 0 {
 		return Player.Player{}, errors.New("empty queue")
 	}
 
-	val := (*q)[0]
-	*q = (*q)[1:]
+	val := (m.match_queue)[0]
+	m.match_queue = (m.match_queue)[1:]
 	return val, nil
 }
 
