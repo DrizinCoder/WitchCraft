@@ -5,8 +5,14 @@ import (
 	match "WitchCraft/Match"
 	"WitchCraft/Player"
 	"encoding/json"
-	"net/http"
+	"fmt"
+	"net"
 )
+
+type Message struct {
+	Action string          `json:"action"`
+	Data   json.RawMessage `json:"data"`
+}
 
 var playerManager = Player.NewManager()
 var stock = Cards.NewStock()
@@ -21,142 +27,88 @@ func Setup() {
 	stock.CreateCard("Knight", 12, 15, Cards.SILVER)
 	stock.CreateCard("Elf", 7, 8, Cards.BRONZE)
 
-	http.HandleFunc("/player/create", createPlayerHandler)
-	http.HandleFunc("/player/login", loginPlayerHlander)
-	http.HandleFunc("/player/openpack", openPackHandler)
-	http.HandleFunc("/player/getplayer", getPlayerHandler)
-	http.HandleFunc("/player/enqueue", enqueue)
-
 	go matchManager.Match_Making()
 
-	http.ListenAndServe(":8080", nil)
-}
+	listener, err := net.Listen("tcp", ":8080")
 
-func createPlayerHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+	if err != nil {
+		fmt.Println("Erro ao iniciar servidor:", err)
 		return
 	}
+	defer listener.Close()
 
-	var req struct {
-		UserName string `json:"username"`
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println("Erro ao conectar:", nil)
+			continue
+		}
+
+		go handleConnection(conn)
+	}
+
+}
+
+func handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	decoder := json.NewDecoder(conn)
+	encoder := json.NewEncoder(conn)
+
+	for {
+		var msg Message
+		err := decoder.Decode(&msg)
+		if err != nil {
+			fmt.Println("Erro ao decodificar mensagem:", err)
+			continue
+		}
+
+		switch msg.Action {
+		case "create_player":
+			createPlayerHandler(msg, *encoder)
+		}
+
+	}
+}
+
+func createPlayerHandler(msg Message, encoder json.Encoder) {
+
+	type req struct {
+		Username string `json:"username"`
 		Login    string `json:"login"`
 		Password string `json:"password"`
 	}
-	json.NewDecoder(r.Body).Decode(&req)
 
-	player := playerManager.Create_Player(req.UserName, req.Login, req.Password)
+	var r req
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(player)
-}
-
-func loginPlayerHlander(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	var req struct {
-		Login    string `json:"login"`
-		Password string `json:"password"`
-	}
-
-	json.NewDecoder(r.Body).Decode(&req)
-
-	player, err := playerManager.Login(req.Login, req.Password)
+	err := json.Unmarshal(msg.Data, &r)
 
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
-		return
+		encoder.Encode(map[string]string{"error": err.Error()})
 	}
 
-	json.NewEncoder(w).Encode(player)
+	player := playerManager.Create_Player(r.Username, r.Login, r.Password)
+	encoder.Encode(player)
 }
 
-func openPackHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	var req struct {
-		PlayerId int `json:"id"`
-	}
-
-	json.NewDecoder(r.Body).Decode(&req)
-
-	pack, err := playerManager.Open_pack(req.PlayerId, stock)
-
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
-	}
-
-	json.NewEncoder(w).Encode(pack)
+func loginPlayerHlander() {
 
 }
 
-func getPlayerHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
+func openPackHandler() {
 
-	var req struct {
-		PlayerID int `json:"id"`
-	}
-
-	json.NewDecoder(r.Body).Decode(&req)
-
-	player, err := playerManager.Search_Player(req.PlayerID)
-
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
-	}
-
-	json.NewEncoder(w).Encode(player)
 }
 
-func enqueue(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
+func getPlayerHandler() {
 
-	var req struct {
-		PlayerID int `json:"id"`
-	}
+}
 
-	json.NewDecoder(r.Body).Decode(&req)
+func enqueue() {
 
-	player, err := playerManager.Search_Player(req.PlayerID)
-
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
-	}
-
-	matchManager.Enqueue(*player)
 }
 
 /*
 ---oq falta implementar---
 
--Enqueue
--Create_Card
-*/
-
-/*
-curl -X POST -d '{"username":"Gui","login":"gui123","password":"123"}' http://localhost:8080/player/create
-
-curl -X POST -d '{"login":"gui123","password":"123"}' http://localhost:8080/player/login
-
-curl -X POST -d '{"id":1}' http://localhost:8080/player/openpack
-
-curl -X POST -d '{"id":1}' http://localhost:8080/player/enqueue
-
-curl -X GET -d '{"id":1}' http://localhost:8080/player/getplayer
+-Tudo
 */
