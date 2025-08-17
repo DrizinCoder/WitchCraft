@@ -66,8 +66,9 @@ func handleConnection(conn net.Conn) {
 		switch msg.Action {
 		case "create_player":
 			createPlayerHandler(msg, *encoder)
+		case "login_player":
+			loginPlayerHlander(msg, *encoder)
 		}
-
 	}
 }
 
@@ -91,8 +92,28 @@ func createPlayerHandler(msg Message, encoder json.Encoder) {
 	encoder.Encode(player)
 }
 
-func loginPlayerHlander() {
+func loginPlayerHlander(msg Message, encoder json.Encoder) {
 
+	type req struct {
+		Login    string `json:"username"`
+		Password string `json:"password"`
+	}
+
+	var r req
+
+	err := json.Unmarshal(msg.Data, &r)
+
+	if err != nil {
+		encoder.Encode(map[string]string{"error": err.Error()})
+	}
+
+	player, err := playerManager.Login(r.Login, r.Password)
+
+	if err != nil {
+		encoder.Encode(map[string]string{"error": err.Error()})
+	}
+
+	encoder.Encode(player)
 }
 
 func openPackHandler() {
