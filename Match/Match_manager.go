@@ -46,9 +46,9 @@ func (m *Match_Manager) Start(matchID int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for _, a := range m.Matches {
-		if a.ID == matchID {
-			a.State = RUNNING
+	for i := range m.Matches {
+		if m.Matches[i].ID == matchID {
+			m.Matches[i].State = RUNNING
 		}
 	}
 }
@@ -57,9 +57,9 @@ func (m *Match_Manager) Finish(matchID int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for _, a := range m.Matches {
-		if a.ID == matchID {
-			a.State = FINISHED
+	for i := range m.Matches {
+		if m.Matches[i].ID == matchID {
+			m.Matches[i].State = FINISHED
 		}
 	}
 }
@@ -68,9 +68,9 @@ func (m *Match_Manager) NextTurn(matchID int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	for _, a := range m.Matches {
-		if a.ID == matchID {
-			a.Turn = 3 - a.Turn
+	for i := range m.Matches {
+		if m.Matches[i].ID == matchID {
+			m.Matches[i].Turn = 3 - m.Matches[i].Turn
 		}
 	}
 
@@ -79,8 +79,11 @@ func (m *Match_Manager) NextTurn(matchID int) {
 func (m *Match_Manager) Match_Making() {
 	for {
 		if len(m.match_queue) >= 2 {
-			player1, _ := m.Dequeue()
-			player2, _ := m.Dequeue()
+			player1, err1 := m.Dequeue()
+			player2, err2 := m.Dequeue()
+			if err1 != nil || err2 != nil {
+				continue
+			}
 
 			match := m.CreateMatch(&player1, &player2, NORMAL, WAITING)
 			m.Start(match.ID)
@@ -105,10 +108,3 @@ func (m *Match_Manager) Dequeue() (Player.Player, error) {
 	m.match_queue = (m.match_queue)[1:]
 	return val, nil
 }
-
-/*
-- MATCH MAKING POR FILA
-- JOGADORES ENTRAM NA FILA E MARCAR COMO 'DISPONIVEL_PARA_JOGO'
-- MATCH_MANAGER ESPERA 2 jogadores prontos para criar partida
-- Considerar jogos Normal game e ranked game
-*/
