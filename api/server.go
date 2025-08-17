@@ -68,6 +68,12 @@ func handleConnection(conn net.Conn) {
 			createPlayerHandler(msg, *encoder)
 		case "login_player":
 			loginPlayerHlander(msg, *encoder)
+		case "open_pack":
+			openPackHandler(msg, *encoder)
+		case "search_player":
+			getPlayerHandler(msg, *encoder)
+		case "enqueue_player":
+			enqueue(msg, *encoder)
 		}
 	}
 }
@@ -116,16 +122,75 @@ func loginPlayerHlander(msg Message, encoder json.Encoder) {
 	encoder.Encode(player)
 }
 
-func openPackHandler() {
+func openPackHandler(msg Message, encoder json.Encoder) {
 
+	type req struct {
+		PlayerID int `json:"id"`
+	}
+
+	var r req
+
+	err := json.Unmarshal(msg.Data, &r)
+
+	if err != nil {
+		encoder.Encode(map[string]string{"error": err.Error()})
+	}
+
+	pack, err := playerManager.Open_pack(r.PlayerID, stock)
+
+	if err != nil {
+		encoder.Encode(map[string]string{"error": err.Error()})
+	}
+
+	encoder.Encode(pack)
 }
 
-func getPlayerHandler() {
+func getPlayerHandler(msg Message, encoder json.Encoder) {
 
+	type req struct {
+		PlayerID int `json:"id"`
+	}
+
+	var r req
+
+	err := json.Unmarshal(msg.Data, &r)
+
+	if err != nil {
+		encoder.Encode(map[string]string{"error": err.Error()})
+	}
+
+	player, err := playerManager.Search_Player(r.PlayerID)
+
+	if err != nil {
+		encoder.Encode(map[string]string{"error": err.Error()})
+	}
+
+	encoder.Encode(player)
 }
 
-func enqueue() {
+func enqueue(msg Message, encoder json.Encoder) {
 
+	type req struct {
+		PlayerID int `json:"id"`
+	}
+
+	var r req
+
+	err := json.Unmarshal(msg.Data, &r)
+
+	if err != nil {
+		encoder.Encode(map[string]string{"error": err.Error()})
+	}
+
+	player, err := playerManager.Search_Player(r.PlayerID)
+
+	if err != nil {
+		encoder.Encode(map[string]string{"error": err.Error()})
+	}
+
+	matchManager.Enqueue(*player)
+
+	encoder.Encode(map[string]string{"Player enqueued": player.UserName})
 }
 
 /*
