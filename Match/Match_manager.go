@@ -75,7 +75,6 @@ func (m *Match_Manager) NextTurn(matchID int) {
 			m.Matches[i].Turn = 3 - m.Matches[i].Turn
 		}
 	}
-
 }
 
 func (m *Match_Manager) Match_Making() {

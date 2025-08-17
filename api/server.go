@@ -22,6 +22,7 @@ func Setup() {
 	http.HandleFunc("/player/create", createPlayerHandler)
 	http.HandleFunc("/player/login", loginPlayerHlander)
 	http.HandleFunc("/player/openpack", openPackHandler)
+	http.HandleFunc("/player/getplayer", getPlayerHandler)
 
 	http.ListenAndServe(":8080", nil)
 }
@@ -92,9 +93,34 @@ func openPackHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func getPlayerHandler() {
+func getPlayerHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
 
+	var req struct {
+		PlayerID int `json:"id"`
+	}
+
+	json.NewDecoder(r.Body).Decode(&req)
+
+	player, err := playerManager.Search_Player(req.PlayerID)
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+	}
+
+	json.NewEncoder(w).Encode(player)
 }
+
+/*
+---oq falta implementar---
+
+-Enqueue
+-Create_Card
+*/
 
 /*
 curl -X POST -d '{"username":"Gui","login":"gui123","password":"123"}' http://localhost:8080/player/create
@@ -102,4 +128,6 @@ curl -X POST -d '{"username":"Gui","login":"gui123","password":"123"}' http://lo
 curl -X POST -d '{"login":"gui123","password":"123"}' http://localhost:8080/player/login
 
 curl -X POST -d '{"id":1}' http://localhost:8080/player/openpack
+
+curl -X GET -d '{"id":1}' http://localhost:8080/player/getplayer
 */
