@@ -64,8 +64,16 @@ func (m *Match_Manager) Finish(matchID int) {
 	}
 }
 
-func (m *Match) NextTurn() {
-	m.Turn = 3 - m.Turn
+func (m *Match_Manager) NextTurn(matchID int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, a := range m.Matches {
+		if a.ID == matchID {
+			a.Turn = 3 - a.Turn
+		}
+	}
+
 }
 
 func (m *Match_Manager) Match_Making() {
