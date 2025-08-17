@@ -4,7 +4,6 @@ import (
 	"WitchCraft/Cards"
 	"WitchCraft/Player"
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
@@ -41,7 +40,6 @@ func createPlayerHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewDecoder(r.Body).Decode(&req)
 
 	player := playerManager.Create_Player(req.UserName, req.Login, req.Password)
-	fmt.Println("Players atuais:", playerManager.Players)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(player)
@@ -82,7 +80,6 @@ func openPackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewDecoder(r.Body).Decode(&req)
-	fmt.Println("Recebi player ID:", req.PlayerId)
 
 	pack, err := playerManager.Open_pack(req.PlayerId, stock)
 
