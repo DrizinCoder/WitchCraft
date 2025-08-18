@@ -180,7 +180,14 @@ func openPackHandler(msg Message, encoder *json.Encoder) {
 		return
 	}
 
-	encoder.Encode(pack)
+	pack_json, _ := json.Marshal(pack)
+
+	final_msg := Message{
+		Action: "open_pack_response",
+		Data:   pack_json,
+	}
+
+	encoder.Encode(final_msg)
 }
 
 func getPlayerHandler(msg Message, encoder *json.Encoder) {
