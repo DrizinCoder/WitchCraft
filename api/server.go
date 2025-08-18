@@ -14,14 +14,10 @@ type Message struct {
 	Data   json.RawMessage `json:"data"`
 }
 
-type createPlayerResponse struct {
+type PlayerResponse struct {
 	ID       int    `json:"id"`
 	UserName string `json:"username"`
 	Login    string `json:"login"`
-}
-
-type idResponse struct {
-	ID int `json:"id`
 }
 
 var playerManager = Player.NewManager()
@@ -107,7 +103,7 @@ func createPlayerHandler(msg Message, encoder *json.Encoder) {
 
 	player := playerManager.Create_Player(r.Username, r.Login, r.Password)
 
-	response := createPlayerResponse{
+	response := PlayerResponse{
 		ID:       player.ID,
 		UserName: player.UserName,
 		Login:    player.Login,
@@ -146,7 +142,20 @@ func loginPlayerHlander(msg Message, encoder *json.Encoder) {
 		return
 	}
 
-	encoder.Encode(player)
+	response := PlayerResponse{
+		ID:       player.ID,
+		UserName: player.UserName,
+		Login:    player.Login,
+	}
+
+	response_json, _ := json.Marshal(response)
+
+	final_msg := Message{
+		Action: "login_player_response",
+		Data:   response_json,
+	}
+
+	encoder.Encode(final_msg)
 }
 
 func openPackHandler(msg Message, encoder *json.Encoder) {
