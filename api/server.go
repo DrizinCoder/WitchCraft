@@ -205,7 +205,20 @@ func getPlayerHandler(msg Message, encoder *json.Encoder) {
 		return
 	}
 
-	encoder.Encode(player)
+	response := PlayerResponse{
+		ID:       player.ID,
+		UserName: player.UserName,
+		Login:    player.Login,
+	}
+
+	response_json, _ := json.Marshal(response)
+
+	final_msg := Message{
+		Action: "search_player_response",
+		Data:   response_json,
+	}
+
+	encoder.Encode(final_msg)
 }
 
 func enqueue(msg Message, encoder *json.Encoder) {
