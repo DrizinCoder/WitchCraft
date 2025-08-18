@@ -12,6 +12,12 @@ type Message struct {
 	Data   json.RawMessage `json:"data"`
 }
 
+type Req_player struct {
+	UserName string
+	Login    string
+	Password string
+}
+
 func setup() {
 
 	conn, err := net.Dial("tcp", ":8080")
@@ -78,6 +84,27 @@ func handleConnection(decoder *json.Decoder) {
 }
 
 func createPlayer(encoder *json.Encoder) {
+
+	var username string
+	var login string
+	var password string
+
+	fmt.Scanf("%s %s %s", Username, Login, Password)
+
+	payload := Req_player{
+		UserName: username,
+		Login:    login,
+		Password: password,
+	}
+
+	data, _ := json.Marshal(payload)
+
+	req := Message{
+		Action: "create_player",
+		Data:   data,
+	}
+
+	encoder.Encode(req)
 
 }
 
