@@ -18,7 +18,7 @@ type Req_player struct {
 	Password string
 }
 
-func setup() {
+func Setup() {
 
 	conn, err := net.Dial("tcp", ":8080")
 
