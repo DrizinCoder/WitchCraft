@@ -14,6 +14,16 @@ type Message struct {
 	Data   json.RawMessage `json:"data"`
 }
 
+type createPlayerResponse struct {
+	ID       int    `json:"id"`
+	UserName string `json:"username"`
+	Login    string `json:"login"`
+}
+
+type idResponse struct {
+	ID int `json:"id`
+}
+
 var playerManager = Player.NewManager()
 var stock = Cards.NewStock()
 var matchManager = match.NewMatchManager()
@@ -96,7 +106,21 @@ func createPlayerHandler(msg Message, encoder *json.Encoder) {
 	}
 
 	player := playerManager.Create_Player(r.Username, r.Login, r.Password)
-	encoder.Encode(player)
+
+	response := createPlayerResponse{
+		ID:       player.ID,
+		UserName: player.UserName,
+		Login:    player.Login,
+	}
+
+	response_json, _ := json.Marshal(response)
+
+	final_msg := Message{
+		Action: "create_player_response",
+		Data:   response_json,
+	}
+
+	encoder.Encode(final_msg)
 }
 
 func loginPlayerHlander(msg Message, encoder *json.Encoder) {
