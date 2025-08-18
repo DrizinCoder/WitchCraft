@@ -89,7 +89,7 @@ func createPlayer(encoder *json.Encoder) {
 	var login string
 	var password string
 
-	fmt.Scanf("%s %s %s", Username, Login, Password)
+	fmt.Scanf("%s %s %s", username, login, password)
 
 	payload := Req_player{
 		UserName: username,
