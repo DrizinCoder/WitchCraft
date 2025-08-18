@@ -9,7 +9,7 @@ import (
 
 func main() {
 	var a int
-	fmt.Scanln(a)
+	fmt.Scanln(&a)
 
 	switch a {
 	case 1:

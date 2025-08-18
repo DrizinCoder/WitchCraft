@@ -13,9 +13,9 @@ type Message struct {
 }
 
 type Req_player struct {
-	UserName string
-	Login    string
-	Password string
+	Username string `json:"username"`
+	Login    string `json:"login"`
+	Password string `json:"password"`
 }
 
 func Setup() {
@@ -37,7 +37,7 @@ func Setup() {
 
 		var action int
 		fmt.Println("Escolha a sua próxima ação.")
-		fmt.Printf("1 - Register Player\n2 - Login\n3 - Search Player\n4 - Open Pack\n5 - Enqueue")
+		fmt.Printf("1 - Register Player\n2 - Login\n3 - Search Player\n4 - Open Pack\n5 - Enqueue\n")
 		fmt.Scanln(&action)
 
 		switch action {
@@ -89,10 +89,10 @@ func createPlayer(encoder *json.Encoder) {
 	var login string
 	var password string
 
-	fmt.Scanf("%s %s %s", username, login, password)
+	fmt.Scanf("%s %s %s", &username, &login, &password)
 
 	payload := Req_player{
-		UserName: username,
+		Username: username,
 		Login:    login,
 		Password: password,
 	}
