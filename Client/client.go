@@ -25,17 +25,38 @@ func setup() {
 	decoder := json.NewDecoder(conn)
 	encoder := json.NewEncoder(conn)
 
-	go handleConnection(*decoder)
+	go handleConnection(decoder)
 
-	select {}
+	for {
+
+		var action int
+		fmt.Println("Escolha a sua próxima ação.")
+		fmt.Printf("1 - Register Player\n2 - Login\n3 - Search Player\n4 - Open Pack\n5 - Enqueue")
+		fmt.Scanln(&action)
+
+		switch action {
+		case 1:
+			createPlayer(encoder)
+		case 2:
+			loginPlayer(encoder)
+		case 3:
+			openPack(encoder)
+		case 4:
+			searchPlayer(encoder)
+		case 5:
+			enqueue(encoder)
+		default:
+			fmt.Println("Unknown value.")
+		}
+	}
 
 }
 
-func handleConnection(decoder json.Decoder) {
+func handleConnection(decoder *json.Decoder) {
 
 	for {
 		var payload Message
-		err := decoder.Decode(payload)
+		err := decoder.Decode(&payload)
 		if err != nil {
 			fmt.Println("Erro ao ler mensagem do servidor.")
 			return
@@ -53,6 +74,26 @@ func handleConnection(decoder json.Decoder) {
 			handleEnqueueResponse(payload.Data)
 		}
 	}
+
+}
+
+func createPlayer(encoder *json.Encoder) {
+
+}
+
+func loginPlayer(encoder *json.Encoder) {
+
+}
+
+func openPack(encoder *json.Encoder) {
+
+}
+
+func searchPlayer(encoder *json.Encoder) {
+
+}
+
+func enqueue(encoder *json.Encoder) {
 
 }
 
@@ -138,7 +179,7 @@ func handleSearchPlayerResponse(data json.RawMessage) {
 
 func handleEnqueueResponse(data json.RawMessage) {
 	type req struct {
-		msg map[string]string `json:"payload"`
+		Msg map[string]string `json:"payload"`
 	}
 
 	var resp req
@@ -149,5 +190,5 @@ func handleEnqueueResponse(data json.RawMessage) {
 		fmt.Println("Erro ao decodificar pacote de dados")
 	}
 
-	fmt.Println(resp.msg)
+	fmt.Println(resp.Msg)
 }
