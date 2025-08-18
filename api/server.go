@@ -252,5 +252,14 @@ func enqueue(msg Message, encoder *json.Encoder) {
 
 	matchManager.Enqueue(*player)
 
-	encoder.Encode(map[string]string{"Player enqueued": player.UserName})
+	payload := map[string]string{"Player enqueued": player.UserName}
+
+	data, _ := json.Marshal(payload)
+
+	final_msg := Message{
+		Action: "enqueue_response",
+		Data:   data,
+	}
+
+	encoder.Encode(final_msg)
 }
