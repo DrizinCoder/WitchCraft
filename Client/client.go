@@ -27,6 +27,8 @@ type Req_id struct {
 	ID int `json:"id"`
 }
 
+var session_id int
+
 func Setup() {
 
 	conn, err := net.Dial("tcp", ":8080")
@@ -106,11 +108,16 @@ func handleConnection(decoder *json.Decoder) {
 
 func createPlayer(encoder *json.Encoder) {
 
-	var username string
-	var login string
-	var password string
+	var username, login, password string
 
-	fmt.Scanf("%s %s %s", &username, &login, &password)
+	fmt.Print("👤 Digite o nome do jogador: ")
+	fmt.Scanln(&username)
+
+	fmt.Print("📧 Digite o login: ")
+	fmt.Scanln(&login)
+
+	fmt.Print("🔑 Digite a senha: ")
+	fmt.Scanln(&password)
 
 	payload := Req_player{
 		Username: username,
@@ -131,10 +138,13 @@ func createPlayer(encoder *json.Encoder) {
 
 func loginPlayer(encoder *json.Encoder) {
 
-	var login string
-	var password string
+	var login, password string
 
-	fmt.Scanf("%s %s", &login, &password)
+	fmt.Print("📧 Digite o login: ")
+	fmt.Scanln(&login)
+
+	fmt.Print("🔑 Digite a senha: ")
+	fmt.Scanln(&password)
 
 	payload := Req_login{
 		Login:    login,
@@ -154,12 +164,8 @@ func loginPlayer(encoder *json.Encoder) {
 
 func openPack(encoder *json.Encoder) {
 
-	var id int
-
-	fmt.Scanf("%d", &id)
-
 	payload := Req_id{
-		ID: id,
+		ID: session_id,
 	}
 
 	println(payload.ID)
@@ -176,12 +182,8 @@ func openPack(encoder *json.Encoder) {
 }
 
 func searchPlayer(encoder *json.Encoder) {
-	var id int
-
-	fmt.Scanf("%d", &id)
-
 	payload := Req_id{
-		ID: id,
+		ID: session_id,
 	}
 
 	println(payload.ID)
@@ -197,12 +199,8 @@ func searchPlayer(encoder *json.Encoder) {
 }
 
 func enqueue(encoder *json.Encoder) {
-	var id int
-
-	fmt.Scanf("%d", &id)
-
 	payload := Req_id{
-		ID: id,
+		ID: session_id,
 	}
 
 	println(payload.ID)
@@ -257,6 +255,8 @@ func handleLoginPlayerResponse(data json.RawMessage) {
 	fmt.Println("Jogador efetuado com sucesso. Retorno do servidor: ")
 	fmt.Println("ID:", resp.ID)
 	fmt.Println("Username", resp.UserName)
+
+	session_id = resp.ID
 }
 
 func handleOpenPackResponse(data json.RawMessage) {
