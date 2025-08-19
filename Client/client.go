@@ -164,7 +164,24 @@ func openPack(encoder *json.Encoder) {
 }
 
 func searchPlayer(encoder *json.Encoder) {
+	var id int
 
+	fmt.Scanf("%d", &id)
+
+	payload := Req_id{
+		ID: id,
+	}
+
+	println(payload.ID)
+
+	data, _ := json.Marshal(payload)
+
+	req := Message{
+		Action: "search_player",
+		Data:   data,
+	}
+
+	encoder.Encode(req)
 }
 
 func enqueue(encoder *json.Encoder) {
