@@ -163,6 +163,9 @@ func loginPlayer(encoder *json.Encoder) {
 }
 
 func openPack(encoder *json.Encoder) {
+	if session_id == 0 {
+		return
+	}
 
 	payload := Req_id{
 		ID: session_id,
@@ -182,6 +185,10 @@ func openPack(encoder *json.Encoder) {
 }
 
 func searchPlayer(encoder *json.Encoder) {
+	if session_id == 0 {
+		return
+	}
+
 	payload := Req_id{
 		ID: session_id,
 	}
@@ -199,6 +206,9 @@ func searchPlayer(encoder *json.Encoder) {
 }
 
 func enqueue(encoder *json.Encoder) {
+	if session_id == 0 {
+		return
+	}
 	payload := Req_id{
 		ID: session_id,
 	}
