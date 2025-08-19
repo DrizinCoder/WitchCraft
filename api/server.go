@@ -66,7 +66,7 @@ func handleConnection(conn net.Conn) {
 		err := decoder.Decode(&msg)
 		if err != nil {
 			fmt.Println("Erro ao decodificar mensagem:", err)
-			continue
+			return // this can be better of course!
 		}
 
 		switch msg.Action {
