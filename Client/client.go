@@ -23,6 +23,10 @@ type Req_login struct {
 	Password string `json:"password"`
 }
 
+type Req_id struct {
+	ID int `json:"id"`
+}
+
 func Setup() {
 
 	conn, err := net.Dial("tcp", ":8080")
@@ -138,6 +142,25 @@ func loginPlayer(encoder *json.Encoder) {
 
 func openPack(encoder *json.Encoder) {
 
+	var id int
+
+	fmt.Scanf("%d", &id)
+
+	payload := Req_id{
+		ID: id,
+	}
+
+	println(payload.ID)
+
+	data, _ := json.Marshal(payload)
+
+	req := Message{
+		Action: "open_pack",
+		Data:   data,
+	}
+
+	encoder.Encode(req)
+
 }
 
 func searchPlayer(encoder *json.Encoder) {
@@ -191,20 +214,20 @@ func handleLoginPlayerResponse(data json.RawMessage) {
 }
 
 func handleOpenPackResponse(data json.RawMessage) {
-	type req struct {
-		Pack []*Cards.Card `json:"pack"`
-	}
 
-	var resp req
-	err := json.Unmarshal(data, &resp)
+	var cards []Cards.Card
+	err := json.Unmarshal(data, &cards)
 
 	if err != nil {
-		fmt.Println("Erro ao decodificar pacote de dados")
+		fmt.Println("Erro ao decodificar pacote de dados: ", err)
 		return
 	}
 
 	fmt.Println("Pacote Aberto. Cartas: ")
-	fmt.Println("ID:", resp.Pack)
+	for _, c := range cards {
+		fmt.Printf("- %s (Power: %d, Life: %d, Rarity: %s)\n",
+			c.Name, c.Power, c.Life, c.Rarity)
+	}
 }
 
 func handleSearchPlayerResponse(data json.RawMessage) {
