@@ -43,10 +43,19 @@ func Setup() {
 	go handleConnection(decoder)
 
 	for {
+		fmt.Println("\n==============================")
+		fmt.Println(" 🎮 WitchCraft - Menu Principal ")
+		fmt.Println("==============================")
+		fmt.Println("1️⃣  - Registrar Jogador")
+		fmt.Println("2️⃣  - Login")
+		fmt.Println("3️⃣  - Abrir Pacote de Cartas")
+		fmt.Println("4️⃣  - Buscar Jogador")
+		fmt.Println("5️⃣  - Entrar na Fila")
+		fmt.Println("0️⃣  - Sair")
+		fmt.Println("------------------------------")
+		fmt.Print("👉 Escolha a sua próxima ação: ")
 
 		var action int
-		fmt.Println("Escolha a sua próxima ação.")
-		fmt.Printf("1 - Register Player\n2 - Login\n3 - Search Player\n4 - Open Pack\n5 - Enqueue\n")
 		fmt.Scanln(&action)
 
 		switch action {
@@ -60,8 +69,11 @@ func Setup() {
 			searchPlayer(encoder)
 		case 5:
 			enqueue(encoder)
+		case 0:
+			fmt.Println("👋 Saindo do jogo... Até logo!")
+			return
 		default:
-			fmt.Println("Unknown value.")
+			fmt.Println("❌ Opção inválida, tente novamente.")
 		}
 	}
 
@@ -185,7 +197,24 @@ func searchPlayer(encoder *json.Encoder) {
 }
 
 func enqueue(encoder *json.Encoder) {
+	var id int
 
+	fmt.Scanf("%d", &id)
+
+	payload := Req_id{
+		ID: id,
+	}
+
+	println(payload.ID)
+
+	data, _ := json.Marshal(payload)
+
+	req := Message{
+		Action: "enqueue_player",
+		Data:   data,
+	}
+
+	encoder.Encode(req)
 }
 
 func handleCreatePlayerResponse(data json.RawMessage) {
