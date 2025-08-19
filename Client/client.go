@@ -18,6 +18,11 @@ type Req_player struct {
 	Password string `json:"password"`
 }
 
+type Req_login struct {
+	Login    string `json:"login"`
+	Password string `json:"password"`
+}
+
 func Setup() {
 
 	conn, err := net.Dial("tcp", ":8080")
@@ -109,6 +114,25 @@ func createPlayer(encoder *json.Encoder) {
 }
 
 func loginPlayer(encoder *json.Encoder) {
+
+	var login string
+	var password string
+
+	fmt.Scanf("%s %s", &login, &password)
+
+	payload := Req_login{
+		Login:    login,
+		Password: password,
+	}
+
+	data, _ := json.Marshal(payload)
+
+	req := Message{
+		Action: "login_player",
+		Data:   data,
+	}
+
+	encoder.Encode(req)
 
 }
 
