@@ -95,11 +95,19 @@ func (m *Match_Manager) Match_Making() {
 	}
 }
 
-func (m *Match_Manager) Enqueue(val Player.Player) {
+func (m *Match_Manager) Enqueue(val Player.Player) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	for _, p := range m.match_queue {
+		if p.ID == val.ID {
+			return errors.New("player alredy in match queue")
+		}
+	}
+
 	m.match_queue = append(m.match_queue, val)
 	println("Empilhando jogador" + val.UserName)
+	return nil
 }
 
 func (m *Match_Manager) Dequeue() (Player.Player, error) {

@@ -104,17 +104,7 @@ func createPlayerHandler(msg Message, encoder *json.Encoder) {
 	player, err := playerManager.Create_Player(r.Username, r.Login, r.Password)
 
 	if err != nil {
-		payload := map[string]string{"error": err.Error()}
-
-		data, _ := json.Marshal(payload)
-
-		erro_msg := Message{
-			Action: "error_reponse",
-			Data:   data,
-		}
-
-		encoder.Encode(erro_msg)
-
+		send_error(err, encoder)
 		return
 	}
 
@@ -265,7 +255,12 @@ func enqueue(msg Message, encoder *json.Encoder) {
 		return
 	}
 
-	matchManager.Enqueue(*player)
+	err = matchManager.Enqueue(*player)
+
+	if err != nil {
+		send_error(err, encoder)
+		return
+	}
 
 	payload := map[string]string{"Player enqueued": player.UserName}
 
@@ -273,8 +268,21 @@ func enqueue(msg Message, encoder *json.Encoder) {
 
 	final_msg := Message{
 		Action: "enqueue_response",
-		Data:   data,
+		Data:   json.RawMessage(data),
 	}
 
 	encoder.Encode(final_msg)
+}
+
+func send_error(err error, encoder *json.Encoder) {
+	payload := map[string]string{"error": err.Error()}
+
+	data, _ := json.Marshal(payload)
+
+	erro_msg := Message{
+		Action: "error_response",
+		Data:   json.RawMessage(data),
+	}
+
+	encoder.Encode(erro_msg)
 }

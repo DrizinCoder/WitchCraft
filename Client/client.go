@@ -103,6 +103,8 @@ func handleConnection(decoder *json.Decoder) {
 			handleSearchPlayerResponse(payload.Data)
 		case "enqueue_response":
 			handleEnqueueResponse(payload.Data)
+		case "error_response":
+			handleErrorResponse(payload.Data)
 		}
 	}
 
@@ -310,11 +312,8 @@ func handleSearchPlayerResponse(data json.RawMessage) {
 }
 
 func handleEnqueueResponse(data json.RawMessage) {
-	type req struct {
-		Msg map[string]string `json:"payload"`
-	}
 
-	var resp req
+	var resp map[string]string
 
 	err := json.Unmarshal(data, &resp)
 
@@ -322,5 +321,18 @@ func handleEnqueueResponse(data json.RawMessage) {
 		fmt.Println("Erro ao decodificar pacote de dados")
 	}
 
-	fmt.Println(resp.Msg)
+	fmt.Println(resp["Player enqueued"])
+}
+
+func handleErrorResponse(data json.RawMessage) {
+
+	var resp map[string]string
+
+	err := json.Unmarshal(data, &resp)
+
+	if err != nil {
+		fmt.Println("Erro ao decodificar pacote de dados")
+	}
+
+	fmt.Println(resp["error"])
 }
