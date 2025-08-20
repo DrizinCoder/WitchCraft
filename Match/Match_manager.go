@@ -78,6 +78,8 @@ func (m *Match_Manager) NextTurn(matchID int) {
 }
 
 func (m *Match_Manager) Match_Making() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	for {
 		if len(m.match_queue) >= 2 {
 			player1, err1 := m.Dequeue()

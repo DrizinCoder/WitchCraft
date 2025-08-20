@@ -217,8 +217,6 @@ func enqueue(encoder *json.Encoder) {
 		ID: session_id,
 	}
 
-	println(payload.ID)
-
 	data, _ := json.Marshal(payload)
 
 	req := Message{
