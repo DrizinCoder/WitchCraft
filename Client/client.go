@@ -111,17 +111,9 @@ func handleConnection(decoder *json.Decoder) {
 }
 
 func createPlayer(encoder *json.Encoder) {
-
-	var username, login, password string
-
-	fmt.Print("👤 Digite o nome do jogador: ")
-	fmt.Scanln(&username)
-
-	fmt.Print("📧 Digite o login: ")
-	fmt.Scanln(&login)
-
-	fmt.Print("🔑 Digite a senha: ")
-	fmt.Scanln(&password)
+	username := prompt("👤 Digite o nome do jogador: ")
+	login := prompt("📧 Digite o login: ")
+	password := prompt("🔑 Digite a senha: ")
 
 	payload := Req_player{
 		Username: username,
@@ -129,41 +121,19 @@ func createPlayer(encoder *json.Encoder) {
 		Password: password,
 	}
 
-	data, _ := json.Marshal(payload)
-
-	req := Message{
-		Action: "create_player",
-		Data:   data,
-	}
-
-	encoder.Encode(req)
-
+	sendRequest(encoder, "create_player", payload)
 }
 
 func loginPlayer(encoder *json.Encoder) {
-
-	var login, password string
-
-	fmt.Print("📧 Digite o login: ")
-	fmt.Scanln(&login)
-
-	fmt.Print("🔑 Digite a senha: ")
-	fmt.Scanln(&password)
+	login := prompt("📧 Digite o login: ")
+	password := prompt("🔑 Digite a senha: ")
 
 	payload := Req_login{
 		Login:    login,
 		Password: password,
 	}
 
-	data, _ := json.Marshal(payload)
-
-	req := Message{
-		Action: "login_player",
-		Data:   data,
-	}
-
-	encoder.Encode(req)
-
+	sendRequest(encoder, "login_player", payload)
 }
 
 func openPack(encoder *json.Encoder) {
@@ -175,16 +145,7 @@ func openPack(encoder *json.Encoder) {
 		ID: session_id,
 	}
 
-	println(payload.ID)
-
-	data, _ := json.Marshal(payload)
-
-	req := Message{
-		Action: "open_pack",
-		Data:   data,
-	}
-
-	encoder.Encode(req)
+	sendRequest(encoder, "open_pack", payload)
 
 }
 
@@ -197,16 +158,7 @@ func searchPlayer(encoder *json.Encoder) {
 		ID: session_id,
 	}
 
-	println(payload.ID)
-
-	data, _ := json.Marshal(payload)
-
-	req := Message{
-		Action: "search_player",
-		Data:   data,
-	}
-
-	encoder.Encode(req)
+	sendRequest(encoder, "search_player", payload)
 }
 
 func enqueue(encoder *json.Encoder) {
@@ -217,14 +169,7 @@ func enqueue(encoder *json.Encoder) {
 		ID: session_id,
 	}
 
-	data, _ := json.Marshal(payload)
-
-	req := Message{
-		Action: "enqueue_player",
-		Data:   data,
-	}
-
-	encoder.Encode(req)
+	sendRequest(encoder, "enqueue_player", payload)
 }
 
 func handleCreatePlayerResponse(data json.RawMessage) {
@@ -333,4 +278,30 @@ func handleErrorResponse(data json.RawMessage) {
 	}
 
 	fmt.Println(resp["error"])
+}
+
+func sendRequest(encoder *json.Encoder, action string, payload any) {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		fmt.Println("Erro ao serializar payload:", err)
+		return
+	}
+
+	req := Message{
+		Action: action,
+		Data:   data,
+	}
+
+	err = encoder.Encode(req)
+	if err != nil {
+		fmt.Println("Erro ao enviar requisição:", err)
+		return
+	}
+}
+
+func prompt(prompt string) string {
+	fmt.Printf("%s", prompt)
+	var input string
+	fmt.Scanln(&input)
+	return input
 }
