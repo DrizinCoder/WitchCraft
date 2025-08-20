@@ -101,7 +101,22 @@ func createPlayerHandler(msg Message, encoder *json.Encoder) {
 		return
 	}
 
-	player := playerManager.Create_Player(r.Username, r.Login, r.Password)
+	player, err := playerManager.Create_Player(r.Username, r.Login, r.Password)
+
+	if err != nil {
+		payload := map[string]string{"error": err.Error()}
+
+		data, _ := json.Marshal(payload)
+
+		erro_msg := Message{
+			Action: "error_reponse",
+			Data:   data,
+		}
+
+		encoder.Encode(erro_msg)
+
+		return
+	}
 
 	response := PlayerResponse{
 		ID:       player.ID,

@@ -27,14 +27,18 @@ func NewManager() *Manager {
 	}
 }
 
-func (m *Manager) Create_Player(name string, login string, password string) *Player {
+func (m *Manager) Create_Player(name string, login string, password string) (*Player, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	if name == "" || login == "" || password == "" {
+		return nil, errors.New("name, login or password cannot be blank space")
+	}
 
 	player := New_Player(generateID(), name, login, password)
 	m.Players = append(m.Players, player)
 
-	return player
+	return player, nil
 }
 
 func (m *Manager) Login(login string, password string) (*Player, error) {
