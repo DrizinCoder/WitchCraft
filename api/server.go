@@ -210,7 +210,7 @@ func getPlayerHandler(msg Message, encoder *json.Encoder) {
 		return
 	}
 
-	player, err := playerManager.Search_Player(r.PlayerID)
+	player, err := playerManager.Search_Player_ByID(r.PlayerID)
 
 	if err != nil {
 		encoder.Encode(map[string]string{"error": err.Error()})
@@ -248,7 +248,7 @@ func enqueue(msg Message, encoder *json.Encoder) {
 		return
 	}
 
-	player, err := playerManager.Search_Player(r.PlayerID)
+	player, err := playerManager.Search_Player_ByID(r.PlayerID)
 
 	if err != nil {
 		encoder.Encode(map[string]string{"error": err.Error()})
