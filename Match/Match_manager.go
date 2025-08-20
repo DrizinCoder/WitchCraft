@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type Queue []Player.Player
+type Queue []*Player.Player
 
 type Match_Manager struct {
 	mu          sync.Mutex
@@ -78,8 +78,6 @@ func (m *Match_Manager) NextTurn(matchID int) {
 }
 
 func (m *Match_Manager) Match_Making() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	for {
 		if len(m.match_queue) >= 2 {
 			player1, err1 := m.Dequeue()
@@ -88,7 +86,9 @@ func (m *Match_Manager) Match_Making() {
 				continue
 			}
 
-			match := m.CreateMatch(&player1, &player2, NORMAL, WAITING)
+			player1.In_game = true
+			player2.In_game = true
+			match := m.CreateMatch(player1, player2, NORMAL, WAITING)
 			m.Start(match.ID)
 			println("The game Start!")
 		} else {
@@ -97,9 +97,13 @@ func (m *Match_Manager) Match_Making() {
 	}
 }
 
-func (m *Match_Manager) Enqueue(val Player.Player) error {
+func (m *Match_Manager) Enqueue(val *Player.Player) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	if val.In_game {
+		return errors.New("you can't join in the queue, alredy in a current game")
+	}
 
 	for _, p := range m.match_queue {
 		if p.ID == val.ID {
@@ -112,11 +116,11 @@ func (m *Match_Manager) Enqueue(val Player.Player) error {
 	return nil
 }
 
-func (m *Match_Manager) Dequeue() (Player.Player, error) {
+func (m *Match_Manager) Dequeue() (*Player.Player, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if len(m.match_queue) == 0 {
-		return Player.Player{}, errors.New("empty queue")
+		return &Player.Player{}, errors.New("empty queue")
 	}
 
 	val := (m.match_queue)[0]

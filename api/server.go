@@ -255,7 +255,7 @@ func enqueue(msg Message, encoder *json.Encoder) {
 		return
 	}
 
-	err = matchManager.Enqueue(*player)
+	err = matchManager.Enqueue(player)
 
 	if err != nil {
 		send_error(err, encoder)
