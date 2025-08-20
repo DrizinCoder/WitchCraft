@@ -5,16 +5,20 @@ import (
 	client "WitchCraft/Client"
 	"WitchCraft/api"
 	"fmt"
+	"os"
 )
 
 func main() {
-	var a int
-	fmt.Scanln(&a)
+	mode := os.Getenv("MODE") // lê variável de ambiente
 
-	switch a {
-	case 1:
+	switch mode {
+	case "server":
+		fmt.Println("Iniciando servidor WitchCraft...")
 		api.Setup()
-	case 2:
+	case "client":
+		fmt.Println("Iniciando cliente WitchCraft...")
 		client.Setup()
+	default:
+		fmt.Println("Defina a variável MODE com 'server' ou 'client'")
 	}
 }

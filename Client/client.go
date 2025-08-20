@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"os"
 )
 
 type Message struct {
@@ -31,7 +32,8 @@ var session_id int
 
 func Setup() {
 
-	conn, err := net.Dial("tcp", ":8080")
+	serverAddr := os.Getenv("SERVER_ADDR")
+	conn, err := net.Dial("tcp", serverAddr)
 
 	if err != nil {
 		fmt.Println("Erro ao iniciar servidor:", err)
