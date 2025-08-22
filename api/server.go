@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"errors"
 )
 
 type Message struct {
@@ -23,8 +24,11 @@ type PlayerResponse struct {
 var playerManager = Player.NewManager()
 var stock = Cards.NewStock()
 var matchManager = match.NewMatchManager()
+var logged_players map[string]*Player.Player
 
 func Setup() {
+
+	logged_players = make(map[string]*Player.Player)
 
 	stock.CreateCard("Fireball", 10, 5, Cards.GOLD)
 	stock.CreateCard("Icebolt", 8, 6, Cards.SILVER)
@@ -32,6 +36,13 @@ func Setup() {
 	stock.CreateCard("Dragon", 20, 20, Cards.DIAMOND)
 	stock.CreateCard("Knight", 12, 15, Cards.SILVER)
 	stock.CreateCard("Elf", 7, 8, Cards.BRONZE)
+
+	stock.CreateCard("Iceball", 10, 5, Cards.GOLD)
+	stock.CreateCard("White_Knight", 8, 6, Cards.SILVER)
+	stock.CreateCard("Giant_goblin", 5, 10, Cards.BRONZE)
+	stock.CreateCard("Dragon_Black", 20, 20, Cards.DIAMOND)
+	stock.CreateCard("Elder_witch", 12, 15, Cards.SILVER)
+	stock.CreateCard("Elf_elder", 7, 8, Cards.BRONZE)
 
 	go matchManager.Match_Making()
 
@@ -82,6 +93,8 @@ func handleConnection(conn net.Conn) {
 			enqueue(msg, encoder)
 		case "see_inventory":
 			getInventoryHandler(msg, encoder)
+		case "ping":
+			pingHandler(encoder)
 		}
 	}
 }
@@ -142,6 +155,14 @@ func loginPlayerHandler(msg Message, encoder *json.Encoder, conn net.Conn) {
 		return
 	}
 
+	_, exists := logged_players[r.Login]
+
+	if exists {
+		err := errors.New("User already logged")
+		send_error(err, encoder)
+		return
+	}
+
 	player, err := playerManager.Login(r.Login, r.Password, conn)
 	fmt.Println(player.Conn.LocalAddr())
 
@@ -149,6 +170,8 @@ func loginPlayerHandler(msg Message, encoder *json.Encoder, conn net.Conn) {
 		encoder.Encode(map[string]string{"error": err.Error()})
 		return
 	}
+
+	logged_players[r.Login] = player
 
 	response := PlayerResponse{
 		ID:       player.ID,
@@ -298,6 +321,17 @@ func getInventoryHandler(msg Message, encoder *json.Encoder) {
 	final_msg := Message{
 		Action: "see_inventory_response",
 		Data: cards_json,
+	}
+
+	encoder.Encode(final_msg)
+}
+
+func pingHandler(encoder *json.Encoder) {
+	a := "a"
+	data_json, _ := json.Marshal(a) 
+	final_msg := Message {
+		Action: "pong_response",
+		Data: data_json,
 	}
 
 	encoder.Encode(final_msg)

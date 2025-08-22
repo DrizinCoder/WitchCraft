@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 )
 
 type Message struct {
@@ -29,6 +30,7 @@ type Req_id struct {
 }
 
 var session_id int
+var start time.Time
 
 func Setup() {
 
@@ -56,6 +58,7 @@ func Setup() {
 		fmt.Println("4️⃣  - Buscar Jogador")
 		fmt.Println("5️⃣  - Entrar na Fila")
 		fmt.Println("6️⃣  - Ver inventário")
+		fmt.Println("7️⃣  - Medir Ping")
 		fmt.Println("0️⃣  - Sair")
 		fmt.Println("------------------------------")
 		fmt.Print("👉 Escolha a sua próxima ação: ")
@@ -76,6 +79,8 @@ func Setup() {
 			enqueue(encoder)
 		case 6:
 			seeInventory(encoder)
+		case 7:
+			ping(encoder)
 		case 0:
 			fmt.Println("👋 Saindo do jogo... Até logo!")
 			return
@@ -110,6 +115,8 @@ func handleConnection(decoder *json.Decoder) {
 			handleErrorResponse(payload.Data)
 		case "see_inventory_response":
 			handleSeeInventoryResponse(payload.Data)
+		case "pong_response":
+			handlePongResponse()
 		}
 	}
 
@@ -186,6 +193,13 @@ func seeInventory(encoder *json.Encoder) {
 	}
 
 	sendRequest(encoder, "see_inventory", payload)
+}
+
+func ping(encoder *json.Encoder) {
+	start = time.Now()
+
+	payload := ""
+	sendRequest(encoder, "ping", payload)
 }
 
 func handleCreatePlayerResponse(data json.RawMessage) {
@@ -316,6 +330,11 @@ func handleSeeInventoryResponse(data json.RawMessage) {
 	}
 }
 
+func handlePongResponse() {
+	elapsed := time.Since(start)
+	fmt.Printf("Ping: %s\n", elapsed)
+}
+
 func sendRequest(encoder *json.Encoder, action string, payload any) {
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -334,6 +353,7 @@ func sendRequest(encoder *json.Encoder, action string, payload any) {
 		return
 	}
 }
+
 
 func prompt(prompt string) string {
 	fmt.Printf("%s", prompt)
