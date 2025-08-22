@@ -80,6 +80,8 @@ func handleConnection(conn net.Conn) {
 			getPlayerHandler(msg, encoder)
 		case "enqueue_player":
 			enqueue(msg, encoder)
+		case "see_inventory":
+			getInventoryHandler(msg, encoder)
 		}
 	}
 }
@@ -270,6 +272,32 @@ func enqueue(msg Message, encoder *json.Encoder) {
 	final_msg := Message{
 		Action: "enqueue_response",
 		Data:   json.RawMessage(data),
+	}
+
+	encoder.Encode(final_msg)
+}
+
+func getInventoryHandler(msg Message, encoder *json.Encoder) {
+	type req struct {
+		PlayerID int `json:"id"`
+	}
+
+	var r req
+
+	err := json.Unmarshal(msg.Data, &r)
+
+	if err != nil {
+		encoder.Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	Cards, _ := playerManager.Get_inventory(r.PlayerID)
+
+	cards_json, _ := json.Marshal(Cards)
+
+	final_msg := Message{
+		Action: "see_inventory_response",
+		Data: cards_json,
 	}
 
 	encoder.Encode(final_msg)

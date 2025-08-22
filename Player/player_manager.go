@@ -102,3 +102,13 @@ func (m *Manager) Search_Player_ByLogin(login string) (*Player, error) {
 	}
 	return player, nil
 }
+
+func (m *Manager) Get_inventory(PlayerID int) ([]*Cards.Card, error) {
+
+	player, exists := m.Search_Player_ByID(PlayerID)
+	if exists != nil {
+		return nil, errors.New("user not found")
+	}
+
+	return player.Cards, nil
+}

@@ -73,6 +73,8 @@ func Setup() {
 			searchPlayer(encoder)
 		case 5:
 			enqueue(encoder)
+		case 6:
+			seeInventory(encoder)
 		case 0:
 			fmt.Println("👋 Saindo do jogo... Até logo!")
 			return
@@ -105,6 +107,8 @@ func handleConnection(decoder *json.Decoder) {
 			handleEnqueueResponse(payload.Data)
 		case "error_response":
 			handleErrorResponse(payload.Data)
+		case "see_inventory_response":
+			handleSeeInventoryResponse(payload.Data)
 		}
 	}
 
@@ -170,6 +174,17 @@ func enqueue(encoder *json.Encoder) {
 	}
 
 	sendRequest(encoder, "enqueue_player", payload)
+}
+
+func seeInventory(encoder *json.Encoder) {
+	if session_id == 0 {
+		return
+	}
+	payload := Req_id{
+		ID: session_id,
+	}
+
+	sendRequest(encoder, "see_inventory", payload)
 }
 
 func handleCreatePlayerResponse(data json.RawMessage) {
@@ -278,6 +293,26 @@ func handleErrorResponse(data json.RawMessage) {
 	}
 
 	fmt.Println(resp["error"])
+}
+
+func handleSeeInventoryResponse(data json.RawMessage) {
+	var cards []Cards.Card
+	err := json.Unmarshal(data, &cards)
+
+	if err != nil {
+		fmt.Println("Erro ao decodificar pacote de dados: ", err)
+		return
+	}
+
+	fmt.Println("Inventário de cartas: ")
+	if len(cards) == 0 {
+		fmt.Println("Sem cartas no inventário.")
+	} else {
+		for _, c := range cards {
+			fmt.Printf("- %s (Power: %d, Life: %d, Rarity: %s)\n",
+				c.Name, c.Power, c.Life, c.Rarity)
+		}
+	}
 }
 
 func sendRequest(encoder *json.Encoder, action string, payload any) {
