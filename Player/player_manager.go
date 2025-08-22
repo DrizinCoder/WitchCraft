@@ -3,6 +3,7 @@ package Player
 import (
 	"WitchCraft/Cards"
 	"errors"
+	"net"
 	"sync"
 )
 
@@ -50,7 +51,7 @@ func (m *Manager) Create_Player(name string, login string, password string) (*Pl
 	return player, nil
 }
 
-func (m *Manager) Login(login string, password string) (*Player, error) {
+func (m *Manager) Login(login string, password string, conn net.Conn) (*Player, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -58,6 +59,8 @@ func (m *Manager) Login(login string, password string) (*Player, error) {
 	if !exists || player.Password != password {
 		return nil, errors.New("invalid credentials")
 	}
+
+	player.Conn = conn
 	return player, nil
 }
 

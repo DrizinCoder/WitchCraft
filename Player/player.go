@@ -1,6 +1,9 @@
 package Player
 
-import "WitchCraft/Cards"
+import (
+	"WitchCraft/Cards"
+	"net"
+)
 
 type Player struct {
 	ID       int
@@ -9,6 +12,7 @@ type Player struct {
 	Password string
 	Cards    []*Cards.Card
 	In_game  bool
+	Conn     net.Conn
 }
 
 func New_Player(id int, userName string, login string, password string) *Player {

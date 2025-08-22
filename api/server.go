@@ -73,7 +73,7 @@ func handleConnection(conn net.Conn) {
 		case "create_player":
 			createPlayerHandler(msg, encoder)
 		case "login_player":
-			loginPlayerHandler(msg, encoder)
+			loginPlayerHandler(msg, encoder, conn)
 		case "open_pack":
 			openPackHandler(msg, encoder)
 		case "search_player":
@@ -124,7 +124,7 @@ func createPlayerHandler(msg Message, encoder *json.Encoder) {
 	encoder.Encode(final_msg)
 }
 
-func loginPlayerHandler(msg Message, encoder *json.Encoder) {
+func loginPlayerHandler(msg Message, encoder *json.Encoder, conn net.Conn) {
 
 	type req struct {
 		Login    string `json:"login"`
@@ -140,7 +140,8 @@ func loginPlayerHandler(msg Message, encoder *json.Encoder) {
 		return
 	}
 
-	player, err := playerManager.Login(r.Login, r.Password)
+	player, err := playerManager.Login(r.Login, r.Password, conn)
+	fmt.Println(player.Conn.LocalAddr())
 
 	if err != nil {
 		encoder.Encode(map[string]string{"error": err.Error()})

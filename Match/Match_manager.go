@@ -3,6 +3,7 @@ package match
 import (
 	"WitchCraft/Player"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -77,7 +78,7 @@ func (m *Match_Manager) NextTurn(matchID int) {
 	}
 }
 
-func (m *Match_Manager) Match_Making() {
+func (m *Match_Manager) Match_Making() { // Retornar a referencia do match criado e passar para uma goroutine que tomará conta do game
 	for {
 		if len(m.match_queue) >= 2 {
 			player1, err1 := m.Dequeue()
@@ -88,6 +89,8 @@ func (m *Match_Manager) Match_Making() {
 
 			player1.In_game = true
 			player2.In_game = true
+			fmt.Println(player1.Conn.LocalAddr())
+			fmt.Println(player2.Conn.LocalAddr())
 			match := m.CreateMatch(player1, player2, NORMAL, WAITING)
 			m.Start(match.ID)
 			println("The game Start!")
