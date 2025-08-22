@@ -55,6 +55,7 @@ func Setup() {
 		fmt.Println("3️⃣  - Abrir Pacote de Cartas")
 		fmt.Println("4️⃣  - Buscar Jogador")
 		fmt.Println("5️⃣  - Entrar na Fila")
+		fmt.Println("6️⃣  - Ver inventário")
 		fmt.Println("0️⃣  - Sair")
 		fmt.Println("------------------------------")
 		fmt.Print("👉 Escolha a sua próxima ação: ")
