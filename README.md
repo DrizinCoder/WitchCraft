@@ -17,7 +17,7 @@ docker network create witchcraft-net
 
 ### 3. Rodar Servidor
 ```bash
-docker run -d --name witchcraft-server --network witchcraft-net -p 8080:8080 -e MODE=server witchcraft
+docker run --name witchcraft-server --network witchcraft-net -p 8080:8080 -e MODE=server witchcraft
 ```
 - -d -> Roda container em segundo plano
 - name -> Define nome do container 
@@ -27,9 +27,9 @@ docker run -d --name witchcraft-server --network witchcraft-net -p 8080:8080 -e 
 
 ### 4. Rodar CLiente
 ```bash
-docker run -it --name witchcraft-client --network witchcraft-net -e MODE=client -e SERVER_ADDR=witchcraft-server:8080 witchcraft
+docker run -it --network witchcraft-net -e MODE=client -e SERVER_ADDR=witchcraft-server:8080 witchcraft
 ```
 ### 5. Parar e remover containers
 ```bash
-docker rm -f witchcraft-server witchcraft-client
+docker rm -f witchcraft-server
 ```
