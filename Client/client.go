@@ -52,7 +52,6 @@ func Setup() {
 	channel = make(chan int, 1)
 
 	for {
-
 		select {
 		case change := <-channel:
 			if change == 1 {
@@ -215,6 +214,18 @@ func ping(encoder *json.Encoder) {
 
 	payload := ""
 	sendRequest(encoder, "ping", payload)
+}
+
+func play_card() {
+
+}
+
+func pass_turn() {
+
+}
+
+func attack() {
+
 }
 
 func handleCreatePlayerResponse(data json.RawMessage) {
@@ -386,13 +397,13 @@ func GameMenu() {
 		switch action {
 		case 1:
 			fmt.Println("🃏 Você escolheu Jogar uma Carta.")
-			// Aqui você pode chamar uma função como `playCard()`
+			play_card()
 		case 2:
 			fmt.Println("⏭️ Você passou o turno.")
-			// Aqui você pode chamar algo como `passTurn()`
+			pass_turn()
 		case 3:
 			fmt.Println("⚔️ Você escolheu Atacar.")
-			// Aqui você pode chamar uma função como `attack()`
+			attack()
 		case 0:
 			fmt.Println("↩️ Voltando ao menu principal...")
 			return
