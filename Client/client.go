@@ -31,6 +31,7 @@ type Req_id struct {
 
 var session_id int
 var start time.Time
+var channel chan int
 
 func Setup() {
 
@@ -48,7 +49,19 @@ func Setup() {
 
 	go handleConnection(decoder)
 
+	channel = make(chan int, 1)
+
 	for {
+
+		select {
+		case change := <-channel:
+			if change == 1 {
+				GameMenu()
+			}
+		default:
+
+		}
+
 		fmt.Println("\n==============================")
 		fmt.Println(" 🎮 WitchCraft - Menu Principal ")
 		fmt.Println("==============================")
@@ -117,6 +130,8 @@ func handleConnection(decoder *json.Decoder) {
 			handleSeeInventoryResponse(payload.Data)
 		case "pong_response":
 			handlePongResponse()
+		case "Game_start":
+			channel <- 1
 		}
 	}
 
@@ -354,6 +369,38 @@ func sendRequest(encoder *json.Encoder, action string, payload any) {
 	}
 }
 
+func GameMenu() {
+	for {
+		fmt.Println("\n==============================")
+		fmt.Println(" ⚔️  WitchCraft - Batalha ")
+		fmt.Println("==============================")
+		fmt.Println("1️⃣  - Jogar Carta")
+		fmt.Println("2️⃣  - Passar Turno")
+		fmt.Println("3️⃣  - Atacar")
+		fmt.Println("------------------------------")
+		fmt.Print("👉 Escolha a sua ação de combate: ")
+
+		var action int
+		fmt.Scanln(&action)
+
+		switch action {
+		case 1:
+			fmt.Println("🃏 Você escolheu Jogar uma Carta.")
+			// Aqui você pode chamar uma função como `playCard()`
+		case 2:
+			fmt.Println("⏭️ Você passou o turno.")
+			// Aqui você pode chamar algo como `passTurn()`
+		case 3:
+			fmt.Println("⚔️ Você escolheu Atacar.")
+			// Aqui você pode chamar uma função como `attack()`
+		case 0:
+			fmt.Println("↩️ Voltando ao menu principal...")
+			return
+		default:
+			fmt.Println("❌ Opção inválida. Tente novamente.")
+		}
+	}
+}
 
 func prompt(prompt string) string {
 	fmt.Printf("%s", prompt)

@@ -2,6 +2,7 @@ package match
 
 import (
 	"WitchCraft/Player"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -14,6 +15,11 @@ type Match_Manager struct {
 	mu          sync.Mutex
 	match_queue Queue
 	Matches     []*Match
+}
+
+type Message struct {
+	Action string          `json:"action"`
+	Data   json.RawMessage `json:"data"`
 }
 
 var nextID int
@@ -134,6 +140,24 @@ func (m *Match_Manager) Dequeue() (*Player.Player, error) {
 }
 
 func (m *Match_Manager) Run_Game(match *Match) {
+	encoder1 := json.NewEncoder(match.Player1.Conn)
+	encoder2 := json.NewEncoder(match.Player2.Conn)
+
+	Data1, _ := json.Marshal(match.Player2.UserName)
+	Data2, _ := json.Marshal(match.Player1.UserName)
+
+	alert1 := Message{
+		Action: "Game_start",
+		Data:   Data1,
+	}
+
+	alert2 := Message{
+		Action: "Game_start",
+		Data:   Data2,
+	}
+
+	encoder1.Encode(alert1)
+	encoder2.Encode(alert2)
 
 	for match.State == RUNNING {
 		select {
