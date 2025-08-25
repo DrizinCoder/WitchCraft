@@ -5,9 +5,9 @@ import (
 	match "WitchCraft/Match"
 	"WitchCraft/Player"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
-	"errors"
 )
 
 type Message struct {
@@ -95,6 +95,8 @@ func handleConnection(conn net.Conn) {
 			getInventoryHandler(msg, encoder)
 		case "ping":
 			pingHandler(encoder)
+		case "Game_Action":
+			gameAction(msg)
 		}
 	}
 }
@@ -158,7 +160,7 @@ func loginPlayerHandler(msg Message, encoder *json.Encoder, conn net.Conn) {
 	_, exists := logged_players[r.Login]
 
 	if exists {
-		err := errors.New("User already logged")
+		err := errors.New("user already logged")
 		send_error(err, encoder)
 		return
 	}
@@ -300,6 +302,25 @@ func enqueue(msg Message, encoder *json.Encoder) {
 	encoder.Encode(final_msg)
 }
 
+func gameAction(msg Message) {
+	type req struct {
+		PlayerID int             `json:"id"`
+		Action   string          `json:"action"`
+		Payload  json.RawMessage `json:"payload"`
+	}
+	var r req
+	json.Unmarshal(msg.Data, &r)
+
+	match1 := matchManager.FindMatchByPlayerID(r.PlayerID)
+	if match1 != nil {
+		match1.MatchChan <- match.Match_Message{
+			PlayerId: r.PlayerID,
+			Action:   r.Action,
+			Data:     r.Payload,
+		}
+	}
+}
+
 func getInventoryHandler(msg Message, encoder *json.Encoder) {
 	type req struct {
 		PlayerID int `json:"id"`
@@ -320,7 +341,7 @@ func getInventoryHandler(msg Message, encoder *json.Encoder) {
 
 	final_msg := Message{
 		Action: "see_inventory_response",
-		Data: cards_json,
+		Data:   cards_json,
 	}
 
 	encoder.Encode(final_msg)
@@ -328,10 +349,10 @@ func getInventoryHandler(msg Message, encoder *json.Encoder) {
 
 func pingHandler(encoder *json.Encoder) {
 	a := "a"
-	data_json, _ := json.Marshal(a) 
-	final_msg := Message {
+	data_json, _ := json.Marshal(a)
+	final_msg := Message{
 		Action: "pong_response",
-		Data: data_json,
+		Data:   data_json,
 	}
 
 	encoder.Encode(final_msg)

@@ -94,6 +94,7 @@ func (m *Match_Manager) Match_Making() { // Retornar a referencia do match criad
 			match := m.CreateMatch(player1, player2, NORMAL, WAITING)
 			m.Start(match.ID)
 			println("The game Start!")
+			go m.Run_Game(match) //  Go routine que tomará conta do jogo
 		} else {
 			time.Sleep(50 * time.Millisecond)
 		}
@@ -130,4 +131,41 @@ func (m *Match_Manager) Dequeue() (*Player.Player, error) {
 	m.match_queue = (m.match_queue)[1:]
 	println("removendo jogador")
 	return val, nil
+}
+
+func (m *Match_Manager) Run_Game(match *Match) {
+
+	for match.State == RUNNING {
+		select {
+		case msg := <-match.MatchChan:
+			m.processAction(match, msg)
+		}
+	}
+
+}
+
+func (m *Match_Manager) processAction(match *Match, msg Match_Message) {
+	switch msg.Action {
+	case "play_card":
+		fmt.Println("Jogador", msg.PlayerId, "jogou carta:", msg.Data)
+		m.sendToOpponent(match, msg.PlayerId, msg)
+	case "end_turn":
+		match.Turn = 3 - match.Turn
+		m.sendToOpponent(match, msg.PlayerId, msg)
+	}
+}
+
+func (m *Match_Manager) FindMatchByPlayerID(matchId int) *Match {
+
+	for i := range m.Matches {
+		if m.Matches[i].ID == matchId {
+			return m.Matches[i]
+		}
+	}
+
+	return nil
+}
+
+func (m *Match_Manager) sendToOpponent(match *Match, playerID int, msg Match_Message) {
+	// Envia ao oponente a resposta
 }
