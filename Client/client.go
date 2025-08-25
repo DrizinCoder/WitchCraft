@@ -14,6 +14,12 @@ type Message struct {
 	Data   json.RawMessage `json:"data"`
 }
 
+type Game_Message struct {
+	PlayerID int             `json:"id"`
+	Action   string          `json:"action"`
+	Data     json.RawMessage `json:"data"`
+}
+
 type Req_player struct {
 	Username string `json:"username"`
 	Login    string `json:"login"`
@@ -55,7 +61,7 @@ func Setup() {
 		select {
 		case change := <-channel:
 			if change == 1 {
-				GameMenu()
+				GameMenu(encoder)
 			}
 		default:
 
@@ -131,6 +137,8 @@ func handleConnection(decoder *json.Decoder) {
 			handlePongResponse()
 		case "Game_start":
 			channel <- 1
+		case "game_response":
+			handleGameResponse(payload.Data)
 		}
 	}
 
@@ -216,15 +224,32 @@ func ping(encoder *json.Encoder) {
 	sendRequest(encoder, "ping", payload)
 }
 
-func play_card() {
+func play_card(encoder *json.Encoder) {
+	test := "Stratovarius - 90 LP | 60 DP"
+
+	test_json, _ := json.Marshal(test)
+
+	msg := Game_Message{
+		PlayerID: session_id,
+		Action:   "play_card",
+		Data:     test_json,
+	}
+
+	msg_json, _ := json.Marshal(msg)
+
+	payload := Message{
+		Action: "Game_Action",
+		Data:   msg_json,
+	}
+
+	encoder.Encode(payload)
+}
+
+func pass_turn(encoder *json.Encoder) {
 
 }
 
-func pass_turn() {
-
-}
-
-func attack() {
+func attack(encoder *json.Encoder) {
 
 }
 
@@ -361,6 +386,19 @@ func handlePongResponse() {
 	fmt.Printf("Ping: %s\n", elapsed)
 }
 
+func handleGameResponse(data json.RawMessage) {
+	var resp string
+
+	err := json.Unmarshal(data, &resp)
+
+	if err != nil {
+		fmt.Println("Erro ao decodificar pacote de dados: ", err)
+		return
+	}
+
+	fmt.Println(resp)
+}
+
 func sendRequest(encoder *json.Encoder, action string, payload any) {
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -380,7 +418,7 @@ func sendRequest(encoder *json.Encoder, action string, payload any) {
 	}
 }
 
-func GameMenu() {
+func GameMenu(encoder *json.Encoder) {
 	for {
 		fmt.Println("\n==============================")
 		fmt.Println(" ⚔️  WitchCraft - Batalha ")
@@ -397,13 +435,13 @@ func GameMenu() {
 		switch action {
 		case 1:
 			fmt.Println("🃏 Você escolheu Jogar uma Carta.")
-			play_card()
+			play_card(encoder)
 		case 2:
 			fmt.Println("⏭️ Você passou o turno.")
-			pass_turn()
+			pass_turn(encoder)
 		case 3:
 			fmt.Println("⚔️ Você escolheu Atacar.")
-			attack()
+			attack(encoder)
 		case 0:
 			fmt.Println("↩️ Voltando ao menu principal...")
 			return

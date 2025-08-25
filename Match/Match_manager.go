@@ -162,20 +162,24 @@ func (m *Match_Manager) Run_Game(match *Match) {
 	for match.State == RUNNING {
 		select {
 		case msg := <-match.MatchChan:
-			m.processAction(match, msg)
+			m.processAction(match, msg, encoder1, encoder2)
 		}
 	}
 
 }
 
-func (m *Match_Manager) processAction(match *Match, msg Match_Message) {
+func (m *Match_Manager) processAction(match *Match, msg Match_Message, encoder1 *json.Encoder, encoder2 *json.Encoder) {
 	switch msg.Action {
 	case "play_card":
 		fmt.Println("Jogador", msg.PlayerId, "jogou carta:", msg.Data)
-		m.sendToOpponent(match, msg.PlayerId, msg)
+		if match.Turn == 1 {
+			m.sendToOpponent(msg, encoder2)
+		} else {
+			m.sendToOpponent(msg, encoder1)
+		}
 	case "end_turn":
 		match.Turn = 3 - match.Turn
-		m.sendToOpponent(match, msg.PlayerId, msg)
+		// m.sendToOpponent(match, msg.PlayerId, msg)
 	}
 }
 
@@ -190,6 +194,18 @@ func (m *Match_Manager) FindMatchByPlayerID(matchId int) *Match {
 	return nil
 }
 
-func (m *Match_Manager) sendToOpponent(match *Match, playerID int, msg Match_Message) {
-	// Envia ao oponente a resposta
+func (m *Match_Manager) sendToOpponent(msg Match_Message, encoder *json.Encoder) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	data := fmt.Sprintf("Jogador %d jogou carta: %s", msg.PlayerId, msg.Data)
+
+	data_json, _ := json.Marshal(data)
+
+	payload := Message{
+		Action: "game_response",
+		Data:   data_json,
+	}
+
+	encoder.Encode(payload)
 }
