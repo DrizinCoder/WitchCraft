@@ -165,8 +165,7 @@ func (m *Match_Manager) processAction(match *Match, msg Match_Message, encoder1 
 	switch msg.Action {
 	case "play_card":
 		fmt.Println("Jogador", msg.PlayerId, "jogou carta:", msg.Data)
-		m.NextTurn(match)
-		if match.Turn == 1 {
+		if msg.PlayerId == match.Player1.ID {
 			m.sendToOpponent(msg, encoder2)
 		} else {
 			m.sendToOpponent(msg, encoder1)
