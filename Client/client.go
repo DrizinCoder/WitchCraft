@@ -297,14 +297,37 @@ func ping(encoder *json.Encoder) {
 }
 
 func play_card(encoder *json.Encoder) {
-	test := "Stratovarius - 90 LP | 60 DP"
+	if len(playerDeck) == 0 {
+		fmt.Println("⚠️ Você precisa montar seu deck antes de jogar!")
+		return
+	}
 
-	test_json, _ := json.Marshal(test)
+	fmt.Println("Escolha uma carta do seu deck para jogar:")
+	for i, c := range playerDeck {
+		fmt.Printf("%d️⃣ - %s (Power: %d, Life: %d, Rarity: %s)\n",
+			i+1, c.Name, c.Power, c.Life, c.Rarity)
+	}
+
+	var choice int
+	for {
+		fmt.Print("Digite o número da carta: ")
+		fmt.Scanln(&choice)
+
+		if choice < 1 || choice > len(playerDeck) {
+			fmt.Println("Escolha inválida, tente novamente.")
+			continue
+		}
+		break
+	}
+
+	card := playerDeck[choice-1]
+
+	card_json, _ := json.Marshal(card)
 
 	msg := Game_Message{
 		PlayerID: session_id,
 		Action:   "play_card",
-		Data:     test_json,
+		Data:     card_json,
 	}
 
 	msg_json, _ := json.Marshal(msg)
@@ -314,7 +337,12 @@ func play_card(encoder *json.Encoder) {
 		Data:   msg_json,
 	}
 
-	encoder.Encode(payload)
+	err := encoder.Encode(payload)
+	if err != nil {
+		fmt.Println("Erro ao enviar ação para o servidor:", err)
+	} else {
+		fmt.Printf("🃏 Você jogou a carta: %s\n", card.Name)
+	}
 }
 
 func pass_turn(encoder *json.Encoder) {
@@ -523,7 +551,6 @@ func GameMenu(encoder *json.Encoder) {
 
 		switch action {
 		case 1:
-			fmt.Println("🃏 Você escolheu Jogar uma Carta.")
 			play_card(encoder)
 		case 2:
 			fmt.Println("⏭️ Você passou o turno.")
