@@ -58,15 +58,6 @@ func Setup() {
 	channel = make(chan int, 1)
 
 	for {
-		select {
-		case change := <-channel:
-			if change == 1 {
-				GameMenu(encoder)
-			}
-		default:
-
-		}
-
 		fmt.Println("\n==============================")
 		fmt.Println(" 🎮 WitchCraft - Menu Principal ")
 		fmt.Println("==============================")
@@ -82,9 +73,13 @@ func Setup() {
 		fmt.Print("👉 Escolha a sua próxima ação: ")
 
 		var action int
-		fmt.Scanln(&action)
+		go func() {
+			fmt.Scanln(&action)
+			channel <- action
+		}()
 
-		switch action {
+		change := <-channel
+		switch change {
 		case 1:
 			createPlayer(encoder)
 		case 2:
@@ -102,6 +97,8 @@ func Setup() {
 		case 0:
 			fmt.Println("👋 Saindo do jogo... Até logo!")
 			return
+		case 99:
+			GameMenu(encoder)
 		default:
 			fmt.Println("❌ Opção inválida, tente novamente.")
 		}
@@ -136,7 +133,7 @@ func handleConnection(decoder *json.Decoder) {
 		case "pong_response":
 			handlePongResponse()
 		case "Game_start":
-			channel <- 1
+			channel <- 99
 		case "game_response":
 			handleGameResponse(payload.Data)
 		}
