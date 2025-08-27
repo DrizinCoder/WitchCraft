@@ -97,6 +97,8 @@ func handleConnection(conn net.Conn) {
 			pingHandler(encoder)
 		case "Game_Action":
 			gameAction(msg)
+		case "set_deck":
+			setDeckHandler(msg, encoder)
 		}
 	}
 }
@@ -258,6 +260,58 @@ func getPlayerHandler(msg Message, encoder *json.Encoder) {
 		Data:   response_json,
 	}
 
+	encoder.Encode(final_msg)
+}
+
+func setDeckHandler(msg Message, encoder *json.Encoder) {
+	// Estrutura esperada do cliente
+	type req struct {
+		PlayerID int           `json:"player_id"`
+		Deck     []*Cards.Card `json:"deck"`
+	}
+
+	var r req
+	err := json.Unmarshal(msg.Data, &r)
+	if err != nil {
+		send_error(err, encoder)
+		return
+	}
+
+	// Busca o jogador
+	player, err := playerManager.Search_Player_ByID(r.PlayerID)
+	if err != nil {
+		send_error(err, encoder)
+		return
+	}
+
+	// Valida se todas as cartas do deck estão no inventário do jogador
+	for _, deckCard := range r.Deck {
+		found := false
+		for _, invCard := range player.Cards {
+			if deckCard.Name == invCard.Name &&
+				deckCard.Power == invCard.Power &&
+				deckCard.Life == invCard.Life &&
+				deckCard.Rarity == invCard.Rarity {
+				found = true
+				break
+			}
+		}
+		if !found {
+			send_error(errors.New("uma ou mais cartas do deck não estão no inventário"), encoder)
+			return
+		}
+	}
+
+	// Atualiza o deck do jogador
+	player.GameDeck = r.Deck
+
+	// Resposta de sucesso
+	payload := map[string]string{"success": "deck definido com sucesso"}
+	data, _ := json.Marshal(payload)
+	final_msg := Message{
+		Action: "set_deck_response",
+		Data:   data,
+	}
 	encoder.Encode(final_msg)
 }
 

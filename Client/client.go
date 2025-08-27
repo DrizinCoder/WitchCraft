@@ -38,6 +38,9 @@ type Req_id struct {
 var session_id int
 var start time.Time
 var channel chan int
+var encoder *json.Encoder
+var playerInventory []*Cards.Card
+var playerDeck []*Cards.Card
 
 func Setup() {
 
@@ -51,7 +54,7 @@ func Setup() {
 	defer conn.Close()
 
 	decoder := json.NewDecoder(conn)
-	encoder := json.NewEncoder(conn)
+	encoder = json.NewEncoder(conn)
 
 	go handleConnection(decoder)
 
@@ -91,7 +94,7 @@ func Setup() {
 		case 5:
 			enqueue(encoder)
 		case 6:
-			seeInventory(encoder)
+			seeInventory()
 		case 7:
 			ping(encoder)
 		case 0:
@@ -132,8 +135,11 @@ func handleConnection(decoder *json.Decoder) {
 			handleSeeInventoryResponse(payload.Data)
 		case "pong_response":
 			handlePongResponse()
+		case "set_deck_response":
+			handleSetDeckResponse(payload.Data)
 		case "Game_start":
 			channel <- 99
+			fmt.Printf("O jogo foi iniciado. Pareado com: %s", payload.Data)
 		case "game_response":
 			handleGameResponse(payload.Data)
 		}
@@ -203,15 +209,84 @@ func enqueue(encoder *json.Encoder) {
 	sendRequest(encoder, "enqueue_player", payload)
 }
 
-func seeInventory(encoder *json.Encoder) {
-	if session_id == 0 {
+func seeInventory() {
+	if len(playerInventory) == 0 {
+		fmt.Println("Sem cartas no inventário.")
 		return
 	}
-	payload := Req_id{
-		ID: session_id,
+
+	fmt.Println("Inventário de cartas:")
+	for i, c := range playerInventory {
+		fmt.Printf("%d️⃣ - %s (Power: %d, Life: %d, Rarity: %s)\n",
+			i+1, c.Name, c.Power, c.Life, c.Rarity)
 	}
 
-	sendRequest(encoder, "see_inventory", payload)
+	fmt.Println("\nDeseja montar seu deck de 3 cartas? (s/n)")
+	var choice string
+	fmt.Scanln(&choice)
+	if choice == "s" || choice == "S" {
+		chooseDeck(playerInventory)
+	}
+}
+
+func chooseDeck(inventory []*Cards.Card) {
+	if len(inventory) < 3 {
+		fmt.Println("Você não tem cartas suficientes para montar um deck.")
+		return
+	}
+
+	fmt.Println("Escolha 3 cartas para seu deck de batalha:")
+	for i, card := range inventory {
+		fmt.Printf("%d️⃣ - %s (Power: %d, Life: %d, Rarity: %s)\n",
+			i+1, card.Name, card.Power, card.Life, card.Rarity)
+	}
+
+	selectedIndexes := make([]int, 0, 3)
+	for len(selectedIndexes) < 3 {
+		fmt.Printf("Digite o número da carta %d: ", len(selectedIndexes)+1)
+		var choice int
+		fmt.Scanln(&choice)
+
+		if choice < 1 || choice > len(inventory) {
+			fmt.Println("Escolha inválida, tente novamente.")
+			continue
+		}
+
+		// Evita escolha duplicada
+		duplicate := false
+		for _, idx := range selectedIndexes {
+			if idx == choice-1 {
+				duplicate = true
+				break
+			}
+		}
+
+		if duplicate {
+			fmt.Println("Você já escolheu essa carta.")
+			continue
+		}
+
+		selectedIndexes = append(selectedIndexes, choice-1)
+	}
+
+	// Cria o deck usando referências do inventário local
+	var selectedCards []*Cards.Card
+	for _, idx := range selectedIndexes {
+		selectedCards = append(selectedCards, inventory[idx])
+	}
+
+	// Armazena o deck localmente no cliente
+	playerDeck = selectedCards
+	_ = playerDeck
+
+	// Envia para o servidor
+	payload := map[string]interface{}{
+		"player_id": session_id,
+		"deck":      selectedCards,
+	}
+	sendRequest(encoder, "set_deck", payload)
+
+	fmt.Println("Deck escolhido com sucesso!")
 }
 
 func ping(encoder *json.Encoder) {
@@ -292,6 +367,11 @@ func handleLoginPlayerResponse(data json.RawMessage) {
 	fmt.Println("Username", resp.UserName)
 
 	session_id = resp.ID
+
+	go func() {
+		payload := Req_id{ID: session_id}
+		sendRequest(encoder, "see_inventory", payload)
+	}()
 }
 
 func handleOpenPackResponse(data json.RawMessage) {
@@ -305,9 +385,10 @@ func handleOpenPackResponse(data json.RawMessage) {
 	}
 
 	fmt.Println("Pacote Aberto. Cartas: ")
-	for _, c := range cards {
+	for i, c := range cards {
 		fmt.Printf("- %s (Power: %d, Life: %d, Rarity: %s)\n",
 			c.Name, c.Power, c.Life, c.Rarity)
+		playerInventory = append(playerInventory, &cards[i])
 	}
 }
 
@@ -361,26 +442,37 @@ func handleErrorResponse(data json.RawMessage) {
 func handleSeeInventoryResponse(data json.RawMessage) {
 	var cards []Cards.Card
 	err := json.Unmarshal(data, &cards)
-
 	if err != nil {
 		fmt.Println("Erro ao decodificar pacote de dados: ", err)
 		return
 	}
 
-	fmt.Println("Inventário de cartas: ")
-	if len(cards) == 0 {
-		fmt.Println("Sem cartas no inventário.")
-	} else {
-		for _, c := range cards {
-			fmt.Printf("- %s (Power: %d, Life: %d, Rarity: %s)\n",
-				c.Name, c.Power, c.Life, c.Rarity)
-		}
+	playerInventory = make([]*Cards.Card, len(cards))
+	playerDeck = make([]*Cards.Card, 0)
+	for i := range cards {
+		playerInventory[i] = &cards[i]
 	}
+	fmt.Println("Inventário carregado com sucesso! Total de cartas:", len(playerInventory))
 }
 
 func handlePongResponse() {
 	elapsed := time.Since(start)
 	fmt.Printf("Ping: %s\n", elapsed)
+}
+
+func handleSetDeckResponse(data json.RawMessage) {
+	var resp map[string]string
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
+		fmt.Println("Erro ao decodificar resposta do servidor:", err)
+		return
+	}
+
+	if msg, ok := resp["success"]; ok {
+		fmt.Println("✅", msg)
+	} else {
+		fmt.Println("❌ Algo deu errado ao definir o deck.")
+	}
 }
 
 func handleGameResponse(data json.RawMessage) {
