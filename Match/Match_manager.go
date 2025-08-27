@@ -73,18 +73,11 @@ func (m *Match_Manager) Finish(matchID int) {
 	}
 }
 
-func (m *Match_Manager) NextTurn(matchID int) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	for i := range m.Matches {
-		if m.Matches[i].ID == matchID {
-			m.Matches[i].Turn = 3 - m.Matches[i].Turn
-		}
-	}
+func (m *Match_Manager) NextTurn(match *Match) {
+	match.Turn = 3 - match.Turn
 }
 
-func (m *Match_Manager) Match_Making() { // Retornar a referencia do match criado e passar para uma goroutine que tomará conta do game
+func (m *Match_Manager) Match_Making() {
 	for {
 		if len(m.match_queue) >= 2 {
 			player1, err1 := m.Dequeue()
@@ -172,6 +165,7 @@ func (m *Match_Manager) processAction(match *Match, msg Match_Message, encoder1 
 	switch msg.Action {
 	case "play_card":
 		fmt.Println("Jogador", msg.PlayerId, "jogou carta:", msg.Data)
+		m.NextTurn(match)
 		if match.Turn == 1 {
 			m.sendToOpponent(msg, encoder2)
 		} else {
@@ -183,14 +177,13 @@ func (m *Match_Manager) processAction(match *Match, msg Match_Message, encoder1 
 	}
 }
 
-func (m *Match_Manager) FindMatchByPlayerID(matchId int) *Match {
-
+func (m *Match_Manager) FindMatchByPlayerID(playerId int) *Match {
 	for i := range m.Matches {
-		if m.Matches[i].ID == matchId {
-			return m.Matches[i]
+		match := m.Matches[i]
+		if match.Player1.ID == playerId || match.Player2.ID == playerId {
+			return match
 		}
 	}
-
 	return nil
 }
 

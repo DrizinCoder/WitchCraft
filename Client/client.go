@@ -15,7 +15,7 @@ type Message struct {
 }
 
 type Game_Message struct {
-	PlayerID int             `json:"id"`
+	PlayerID int             `json:"PlayerID"`
 	Action   string          `json:"action"`
 	Data     json.RawMessage `json:"data"`
 }

@@ -304,14 +304,18 @@ func enqueue(msg Message, encoder *json.Encoder) {
 
 func gameAction(msg Message) {
 	type req struct {
-		PlayerID int             `json:"id"`
+		PlayerID int             `json:"PlayerID"`
 		Action   string          `json:"action"`
-		Payload  json.RawMessage `json:"payload"`
+		Payload  json.RawMessage `json:"data"`
 	}
 	var r req
 	json.Unmarshal(msg.Data, &r)
 
+	fmt.Println("Recebi Game_Action:", string(msg.Data))
+
 	match1 := matchManager.FindMatchByPlayerID(r.PlayerID)
+	fmt.Println(match1)
+	fmt.Println("Procurando match para player:", r.PlayerID)
 	if match1 != nil {
 		match1.MatchChan <- match.Match_Message{
 			PlayerId: r.PlayerID,
