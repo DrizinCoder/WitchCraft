@@ -78,6 +78,9 @@ func Setup() {
 		var action int
 		go func() {
 			fmt.Scanln(&action)
+			if action == 99 {
+				action = 20
+			}
 			channel <- action
 		}()
 
