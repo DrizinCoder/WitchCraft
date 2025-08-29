@@ -26,11 +26,11 @@ func NewStock() *Stock {
 	}
 }
 
-func (s *Stock) CreateCard(name string, power int, life int, rarity Rare) *Card {
+func (s *Stock) CreateCard(name string, power int, life int, rarity Rare, inteligency int) *Card {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	card := New_Card(generateID(), name, power, life, rarity)
+	card := New_Card(generateID(), name, power, life, inteligency, rarity)
 	s.Deck = append(s.Deck, card)
 
 	return card

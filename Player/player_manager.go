@@ -51,10 +51,6 @@ func (m *Manager) Create_Player(name string, login string, password string) (*Pl
 	return player, nil
 }
 
-func (m *Manager) Edit_Game_Deck() {
-
-}
-
 func (m *Manager) Login(login string, password string, conn net.Conn) (*Player, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

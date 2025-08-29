@@ -1,6 +1,7 @@
 package match
 
 import (
+	"WitchCraft/Cards"
 	"WitchCraft/Player"
 	"encoding/json"
 	"errors"
@@ -165,30 +166,115 @@ func (m *Match_Manager) Run_Game(match *Match) {
 	encoder1.Encode(alert1)
 	encoder2.Encode(alert2)
 
+	player1_play := false
+	player2_play := false
+	player1_points := 0
+	player2_points := 0
+
 	for match.State == RUNNING {
 		select {
 		case msg := <-match.MatchChan:
-			m.processAction(match, msg, encoder1, encoder2)
+			m.processAction(match, msg, encoder1, encoder2, &player1_play, &player2_play)
+		default:
+			if player1_play && player2_play {
+				player1_play = false
+				player2_play = false
+				m.processBattle(match, encoder1, encoder2, &player1_points, &player2_points)
+
+				match.Round++
+				match.PlayedCard1 = nil
+				match.PlayedCard2 = nil
+
+				if match.Round >= 3 {
+					m.Finish(match.ID)
+					return
+				}
+			}
 		}
 	}
 
 }
 
-func (m *Match_Manager) processAction(match *Match, msg Match_Message, encoder1 *json.Encoder, encoder2 *json.Encoder) {
+func (m *Match_Manager) processAction(match *Match, msg Match_Message, encoder1 *json.Encoder, encoder2 *json.Encoder, p1p *bool, p2p *bool) {
 	switch msg.Action {
 	case "play_card":
-		fmt.Println("Jogador", msg.PlayerId, "jogou carta:", msg.Data)
-		m.NextTurn(match)
-		if msg.PlayerId == match.Player1.ID {
-			m.sendToOpponent(msg, encoder2, match.Turn)
-			m.sendToPlayer(encoder1, match.Turn)
-		} else {
-			m.sendToOpponent(msg, encoder1, match.Turn)
-			m.sendToPlayer(encoder2, match.Turn)
+		var play struct {
+			Card     *Cards.Card `json:"card"`
+			Atribute string      `json:"atribute"`
 		}
-	case "end_turn":
-		// m.sendToOpponent(match, msg.PlayerId, msg)
+
+		err := json.Unmarshal(msg.Data, &play)
+		if err != nil {
+			fmt.Println("Erro ao decodificar carta jogada:", err)
+			return
+		}
+
+		card := play.Card
+		atribute := play.Atribute
+
+		if msg.PlayerId == match.Player1.ID {
+			match.PlayedCard1 = &PlayedCard{Card: *card, Atribute: atribute}
+			*p1p = true
+		} else {
+			match.PlayedCard2 = &PlayedCard{Card: *card, Atribute: atribute}
+			*p2p = true
+		}
+
+		m.NextTurn(match)
+		m.sendToOpponent(msg, encoder2, match.Turn)
+		m.sendToPlayer(encoder1, match.Turn)
 	}
+}
+
+func (m *Match_Manager) processBattle(match *Match, encoder1 *json.Encoder, encoder2 *json.Encoder, player1_points *int, player2_points *int) {
+	card1 := match.PlayedCard1
+	card2 := match.PlayedCard2
+
+	if card1 == nil || card2 == nil {
+		fmt.Println("Erro: uma das cartas está nula")
+		return
+	}
+
+	var val1, val2 int
+
+	switch card1.Atribute {
+	case "Poder":
+		val1 = card1.Card.Power
+		val2 = card2.Card.Power
+	case "Vida":
+		val1 = card1.Card.Life
+		val2 = card2.Card.Life
+	case "Inteligência":
+		val1 = card1.Card.Inteligence
+		val2 = card2.Card.Inteligence
+	default:
+		fmt.Println("Atributo inválido")
+		return
+	}
+
+	var result string
+	if val1 > val2 {
+		result = fmt.Sprintf("%s venceu a rodada com %s!", match.Player1.UserName, card1.Atribute)
+		*player1_points++
+		match.Turn = match.Player1.ID
+	} else if val2 > val1 {
+		result = fmt.Sprintf("%s venceu a rodada com %s!", match.Player2.UserName, card2.Atribute)
+		*player2_points++
+		match.Turn = match.Player2.ID
+	} else {
+		result = fmt.Sprintf("Empate na rodada com %s!", card1.Atribute)
+	}
+
+	data := generatePayload(result, match.Turn)
+	data_json, _ := json.Marshal(data)
+
+	payload := Message{
+		Action: "game_response",
+		Data:   data_json,
+	}
+
+	encoder1.Encode(payload)
+	encoder2.Encode(payload)
 }
 
 func (m *Match_Manager) FindMatchByPlayerID(playerId int) *Match {
@@ -201,9 +287,40 @@ func (m *Match_Manager) FindMatchByPlayerID(playerId int) *Match {
 	return nil
 }
 
-func (m *Match_Manager) sendToOpponent(msg Match_Message, encoder *json.Encoder, turn int) { // colocar para exibir o username ao em vez de ID
+func (m *Match_Manager) sendToOpponent(msg Match_Message, encoder *json.Encoder, turn int) {
+	type PlayedCard struct {
+		Card struct {
+			Name        string     `json:"name"`
+			Power       int        `json:"power"`
+			Life        int        `json:"life"`
+			Inteligence int        `json:"inteligence"`
+			Rarity      Cards.Rare `json:"rarity"`
+		} `json:"card"`
+		Atribute string `json:"atribute"`
+	}
 
-	initial := fmt.Sprintf("Jogador %d jogou carta: %s", msg.PlayerId, msg.Data)
+	var played PlayedCard
+	err := json.Unmarshal(msg.Data, &played)
+	if err != nil {
+		fmt.Println("❌ Erro ao decodificar jogada:", err)
+		return
+	}
+
+	card := played.Card
+	attr := played.Atribute
+
+	match := m.FindMatchByPlayerID(msg.PlayerId)
+	var playerName string
+	if match != nil {
+		if match.Player1.ID == msg.PlayerId {
+			playerName = match.Player1.UserName
+		} else if match.Player2.ID == msg.PlayerId {
+			playerName = match.Player2.UserName
+		}
+	}
+
+	initial := fmt.Sprintf("🃏 %s jogou a carta: %s (Power: %d | Life: %d | Inteligência: %d | Raridade: %s)\n🔰 Atributo escolhido: %s",
+		playerName, card.Name, card.Power, card.Life, card.Inteligence, card.Rarity, attr)
 
 	data := generatePayload(initial, turn)
 
@@ -214,12 +331,11 @@ func (m *Match_Manager) sendToOpponent(msg Match_Message, encoder *json.Encoder,
 		Data:   data_json,
 	}
 
-	encoder.Encode(payload)
+	_ = encoder.Encode(payload)
 }
 
 func (m *Match_Manager) sendToPlayer(encoder *json.Encoder, turn int) {
-
-	initial := "Mensagem do servidor: "
+	initial := "✅ Carta enviada com sucesso. Aguarde o oponente."
 	data := generatePayload(initial, turn)
 
 	data_json, _ := json.Marshal(data)
@@ -229,7 +345,7 @@ func (m *Match_Manager) sendToPlayer(encoder *json.Encoder, turn int) {
 		Data:   data_json,
 	}
 
-	encoder.Encode(payload)
+	_ = encoder.Encode(payload)
 }
 
 func generatePayload(info string, turn int) payload {

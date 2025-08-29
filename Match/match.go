@@ -1,6 +1,7 @@
 package match
 
 import (
+	"WitchCraft/Cards"
 	"WitchCraft/Player"
 	"encoding/json"
 )
@@ -20,6 +21,11 @@ type MatchState uint8
 
 type MatchType uint8
 
+type PlayedCard struct {
+	Card     Cards.Card
+	Atribute string
+}
+
 type Match_Message struct {
 	PlayerId int             `json:"id"`
 	Action   string          `json:"action"`
@@ -33,6 +39,10 @@ type Match struct {
 	Type    MatchType
 	State   MatchState
 	Turn    int
+
+	PlayedCard1 *PlayedCard
+	PlayedCard2 *PlayedCard
+	Round       int
 
 	MatchChan chan Match_Message
 }

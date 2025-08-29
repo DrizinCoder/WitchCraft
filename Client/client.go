@@ -249,8 +249,8 @@ func seeInventory() {
 
 	fmt.Println("Inventário de cartas:")
 	for i, c := range playerInventory {
-		fmt.Printf("%d️⃣ - %s (Power: %d, Life: %d, Rarity: %s)\n",
-			i+1, c.Name, c.Power, c.Life, c.Rarity)
+		fmt.Printf("%d️⃣ - %s (Power: %d, Life: %d, Inteligence: %d, Rarity: %s)\n",
+			i+1, c.Name, c.Power, c.Life, c.Inteligence, c.Rarity)
 	}
 
 	inventoryCopy := make([]*Cards.Card, len(playerInventory))
@@ -272,9 +272,9 @@ func chooseDeck(inventory []*Cards.Card) {
 	}
 
 	fmt.Println("Escolha 3 cartas para seu deck de batalha:")
-	for i, card := range inventory {
-		fmt.Printf("%d️⃣ - %s (Power: %d, Life: %d, Rarity: %s)\n",
-			i+1, card.Name, card.Power, card.Life, card.Rarity)
+	for i, c := range inventory {
+		fmt.Printf("%d️⃣ - %s (Power: %d, Life: %d, Inteligence: %d, Rarity: %s)\n",
+			i+1, c.Name, c.Power, c.Life, c.Inteligence, c.Rarity)
 	}
 
 	selectedIndexes := make([]int, 0, 3)
@@ -337,11 +337,12 @@ func play_card(encoder *json.Encoder) {
 
 	fmt.Println("Escolha uma carta do seu deck para jogar:")
 	for i, c := range playerDeck {
-		fmt.Printf("%d️⃣ - %s (Power: %d, Life: %d, Rarity: %s)\n",
-			i+1, c.Name, c.Power, c.Life, c.Rarity)
+		fmt.Printf("%d️⃣ - %s (Power: %d, Life: %d, Inteligence: %d, Rarity: %s)\n",
+			i+1, c.Name, c.Power, c.Life, c.Inteligence, c.Rarity)
 	}
 
 	var choice int
+	var choice2 int
 	for {
 		fmt.Print("Digite o número da carta: ")
 		fmt.Scanln(&choice)
@@ -352,15 +353,41 @@ func play_card(encoder *json.Encoder) {
 		}
 		break
 	}
+	for {
+		fmt.Print("Digite o atributo que deseja competir")
+		fmt.Printf("1 - Inteligencia\n2 - Poder\n3 - Vida")
+		fmt.Scanln(&choice2)
 
-	card := playerDeck[choice-1]
+		if choice2 < 1 || choice2 > 3 {
+			fmt.Println("Escolha inválida, tente novamente.")
+			continue
+		}
+		break
+	}
 
-	card_json, _ := json.Marshal(card)
+	type playCard struct {
+		Card     *Cards.Card `json:"card"`
+		Atribute string      `json:"atribute"`
+	}
+
+	var req playCard
+
+	req.Card = playerDeck[choice-1]
+	switch choice2 {
+	case 1:
+		req.Atribute = "Inteligência"
+	case 2:
+		req.Atribute = "Poder"
+	case 3:
+		req.Atribute = "Vida"
+	}
+
+	req_json, _ := json.Marshal(req)
 
 	msg := Game_Message{
 		PlayerID: session_id,
 		Action:   "play_card",
-		Data:     card_json,
+		Data:     req_json,
 	}
 
 	msg_json, _ := json.Marshal(msg)
@@ -374,16 +401,8 @@ func play_card(encoder *json.Encoder) {
 	if err != nil {
 		fmt.Println("Erro ao enviar ação para o servidor:", err)
 	} else {
-		fmt.Printf("🃏 Você jogou a carta: %s\n", card.Name)
+		fmt.Printf("🃏 Você jogou a carta: %s\n", req.Card)
 	}
-}
-
-func pass_turn(encoder *json.Encoder) {
-
-}
-
-func attack(encoder *json.Encoder) {
-
 }
 
 func handleCreatePlayerResponse(data json.RawMessage) {
@@ -562,13 +581,11 @@ func handleSetDeckResponse(data json.RawMessage) {
 }
 
 func handleGameResponse(data json.RawMessage) {
-
 	var resp payload
 
 	err := json.Unmarshal(data, &resp)
-
 	if err != nil {
-		fmt.Println("Erro ao decodificar pacote de dados: ", err)
+		fmt.Println("❌ Erro ao decodificar dados da resposta do jogo:", err)
 		return
 	}
 
@@ -576,12 +593,23 @@ func handleGameResponse(data json.RawMessage) {
 	gameTurn = resp.Turn
 	gameTurnMutex.Unlock()
 
-	if resp.Turn == session_id {
-		fmt.Printf("%s. Seu turno, realize sua jogada", resp.Info)
-	} else {
-		fmt.Printf("%s. Aguarde seu turno para jogar", resp.Info)
-	}
+	// Embelezar a exibição da mensagem do servidor
+	fmt.Println("\n==============================")
+	fmt.Println("📩 Atualização da Partida")
+	fmt.Println("==============================")
 
+	// Separar tipo de mensagens se quiser no futuro
+	info := resp.Info
+
+	switch {
+	case resp.Turn == session_id:
+		fmt.Printf("🟢 %s\n", info)
+		fmt.Println("✅ Agora é o seu turno! Faça sua jogada.")
+		GameMenu(encoder)
+	default:
+		fmt.Printf("🕒 %s\n", info)
+		fmt.Println("⏳ Aguarde... É o turno do seu oponente.")
+	}
 }
 
 func handleGameStartResponse(data json.RawMessage) {
@@ -652,12 +680,6 @@ func GameMenu(encoder *json.Encoder) {
 			switch action {
 			case 1:
 				play_card(encoder)
-			case 2:
-				fmt.Println("⏭️ Você passou o turno.")
-				pass_turn(encoder)
-			case 3:
-				fmt.Println("⚔️ Você escolheu Atacar.")
-				attack(encoder)
 			case 0:
 				fmt.Println("↩️ Voltando ao menu principal...")
 				return

@@ -30,19 +30,19 @@ func Setup() {
 
 	logged_players = make(map[string]*Player.Player)
 
-	stock.CreateCard("Fireball", 10, 5, Cards.GOLD)
-	stock.CreateCard("Icebolt", 8, 6, Cards.SILVER)
-	stock.CreateCard("Goblin", 5, 10, Cards.BRONZE)
-	stock.CreateCard("Dragon", 20, 20, Cards.DIAMOND)
-	stock.CreateCard("Knight", 12, 15, Cards.SILVER)
-	stock.CreateCard("Elf", 7, 8, Cards.BRONZE)
+	stock.CreateCard("Fireball", 10, 5, 2, Cards.GOLD)
+	stock.CreateCard("Icebolt", 8, 6, 7, Cards.SILVER)
+	stock.CreateCard("Goblin", 5, 10, 9, Cards.BRONZE)
+	stock.CreateCard("Dragon", 20, 20, 11, Cards.DIAMOND)
+	stock.CreateCard("Knight", 12, 15, 16, Cards.SILVER)
+	stock.CreateCard("Elf", 7, 8, 12, Cards.BRONZE)
 
-	stock.CreateCard("Iceball", 10, 5, Cards.GOLD)
-	stock.CreateCard("White_Knight", 8, 6, Cards.SILVER)
-	stock.CreateCard("Giant_goblin", 5, 10, Cards.BRONZE)
-	stock.CreateCard("Dragon_Black", 20, 20, Cards.DIAMOND)
-	stock.CreateCard("Elder_witch", 12, 15, Cards.SILVER)
-	stock.CreateCard("Elf_elder", 7, 8, Cards.BRONZE)
+	stock.CreateCard("Iceball", 10, 5, 2, Cards.GOLD)
+	stock.CreateCard("White_Knight", 8, 6, 7, Cards.SILVER)
+	stock.CreateCard("Giant_goblin", 5, 10, 9, Cards.BRONZE)
+	stock.CreateCard("Dragon_Black", 20, 20, 11, Cards.DIAMOND)
+	stock.CreateCard("Elder_witch", 12, 15, 16, Cards.SILVER)
+	stock.CreateCard("Elf_elder", 7, 8, 12, Cards.BRONZE)
 
 	go matchManager.Match_Making()
 
@@ -292,6 +292,7 @@ func setDeckHandler(msg Message, encoder *json.Encoder) {
 			if deckCard.Name == invCard.Name &&
 				deckCard.Power == invCard.Power &&
 				deckCard.Life == invCard.Life &&
+				deckCard.Inteligence == invCard.Inteligence &&
 				deckCard.Rarity == invCard.Rarity {
 				found = true
 				break
