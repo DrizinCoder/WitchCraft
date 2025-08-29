@@ -581,11 +581,13 @@ func handleSetDeckResponse(data json.RawMessage) {
 }
 
 func handleGameResponse(data json.RawMessage) {
+
 	var resp payload
 
 	err := json.Unmarshal(data, &resp)
+
 	if err != nil {
-		fmt.Println("❌ Erro ao decodificar dados da resposta do jogo:", err)
+		fmt.Println("Erro ao decodificar pacote de dados: ", err)
 		return
 	}
 
@@ -593,23 +595,12 @@ func handleGameResponse(data json.RawMessage) {
 	gameTurn = resp.Turn
 	gameTurnMutex.Unlock()
 
-	// Embelezar a exibição da mensagem do servidor
-	fmt.Println("\n==============================")
-	fmt.Println("📩 Atualização da Partida")
-	fmt.Println("==============================")
-
-	// Separar tipo de mensagens se quiser no futuro
-	info := resp.Info
-
-	switch {
-	case resp.Turn == session_id:
-		fmt.Printf("🟢 %s\n", info)
-		fmt.Println("✅ Agora é o seu turno! Faça sua jogada.")
-		GameMenu(encoder)
-	default:
-		fmt.Printf("🕒 %s\n", info)
-		fmt.Println("⏳ Aguarde... É o turno do seu oponente.")
+	if resp.Turn == session_id {
+		fmt.Printf("%s. Seu turno, realize sua jogada", resp.Info)
+	} else {
+		fmt.Printf("%s. Aguarde seu turno para jogar", resp.Info)
 	}
+
 }
 
 func handleGameStartResponse(data json.RawMessage) {
