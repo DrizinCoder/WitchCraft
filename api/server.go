@@ -168,7 +168,6 @@ func loginPlayerHandler(msg Message, encoder *json.Encoder, conn net.Conn) {
 	}
 
 	player, err := playerManager.Login(r.Login, r.Password, conn)
-	fmt.Println(player.Conn.LocalAddr())
 
 	if err != nil {
 		encoder.Encode(map[string]string{"error": err.Error()})
