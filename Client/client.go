@@ -145,6 +145,8 @@ func handleConnection(decoder *json.Decoder) {
 			fmt.Printf("O jogo foi iniciado. Pareado com: %s", payload.Data)
 		case "game_response":
 			handleGameResponse(payload.Data)
+		case "get_deck_response":
+			handleGetDeckResponse(payload.Data)
 		}
 	}
 
@@ -178,6 +180,7 @@ func loginPlayer(encoder *json.Encoder) {
 
 func openPack(encoder *json.Encoder) {
 	if session_id == 0 {
+		fmt.Println("❌ Opção inválida, você deve estar logado para completar essa ação")
 		return
 	}
 
@@ -203,8 +206,15 @@ func searchPlayer(encoder *json.Encoder) {
 
 func enqueue(encoder *json.Encoder) {
 	if session_id == 0 {
+		fmt.Println("❌ Opção inválida, você deve estar logado para completar essa ação")
 		return
 	}
+
+	if len(playerDeck) == 0 {
+		fmt.Println("❌ Opção inválida, você deve montar seu deck de jogo")
+		return
+	}
+
 	payload := Req_id{
 		ID: session_id,
 	}
@@ -213,6 +223,10 @@ func enqueue(encoder *json.Encoder) {
 }
 
 func seeInventory() {
+	if session_id == 0 {
+		fmt.Println("❌ Opção inválida, você deve estar logado para completar essa ação")
+		return
+	}
 	if len(playerInventory) == 0 {
 		fmt.Println("Sem cartas no inventário.")
 		return
@@ -403,6 +417,11 @@ func handleLoginPlayerResponse(data json.RawMessage) {
 		payload := Req_id{ID: session_id}
 		sendRequest(encoder, "see_inventory", payload)
 	}()
+
+	go func() {
+		payload := Req_id{ID: session_id}
+		sendRequest(encoder, "get_deck", payload)
+	}()
 }
 
 func handleOpenPackResponse(data json.RawMessage) {
@@ -484,6 +503,20 @@ func handleSeeInventoryResponse(data json.RawMessage) {
 		playerInventory[i] = &cards[i]
 	}
 	fmt.Println("Inventário carregado com sucesso! Total de cartas:", len(playerInventory))
+}
+
+func handleGetDeckResponse(data json.RawMessage) {
+	var cards []Cards.Card
+	err := json.Unmarshal(data, &cards)
+	if err != nil {
+		fmt.Println("Erro ao decodificar pacote de dados: ", err)
+		return
+	}
+
+	playerDeck = make([]*Cards.Card, len(cards))
+	for i := range cards {
+		playerDeck[i] = &cards[i]
+	}
 }
 
 func handlePongResponse() {

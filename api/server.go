@@ -99,6 +99,8 @@ func handleConnection(conn net.Conn) {
 			gameAction(msg)
 		case "set_deck":
 			setDeckHandler(msg, encoder)
+		case "get_deck":
+			getDeckHandler(msg, encoder)
 		}
 	}
 }
@@ -159,7 +161,7 @@ func loginPlayerHandler(msg Message, encoder *json.Encoder, conn net.Conn) {
 		return
 	}
 
-	_, exists := logged_players[r.Login]
+	_, exists := logged_players[r.Login] // Aqui pode ter concorrência
 
 	if exists {
 		err := errors.New("user already logged")
@@ -398,6 +400,32 @@ func getInventoryHandler(msg Message, encoder *json.Encoder) {
 
 	final_msg := Message{
 		Action: "see_inventory_response",
+		Data:   cards_json,
+	}
+
+	encoder.Encode(final_msg)
+}
+
+func getDeckHandler(msg Message, encoder *json.Encoder) {
+	type req struct {
+		PlayerID int `json:"id"`
+	}
+
+	var r req
+
+	err := json.Unmarshal(msg.Data, &r)
+
+	if err != nil {
+		encoder.Encode(map[string]string{"error": err.Error()})
+		return
+	}
+
+	Cards, _ := playerManager.Get_deck(r.PlayerID)
+
+	cards_json, _ := json.Marshal(Cards)
+
+	final_msg := Message{
+		Action: "get_deck_response",
 		Data:   cards_json,
 	}
 

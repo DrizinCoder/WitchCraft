@@ -45,6 +45,7 @@ clean: rm-server
 	@echo "Limpeza completa!"
 
 .PHON: help
+help:
 	@echo "--- Lista de Comandos Makefile ---"
 	@echo "network -> Cria Rede docker"
 	@echo "build -> Builda Imagem"

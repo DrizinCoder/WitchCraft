@@ -116,3 +116,13 @@ func (m *Manager) Get_inventory(PlayerID int) ([]*Cards.Card, error) {
 
 	return player.Cards, nil
 }
+
+func (m *Manager) Get_deck(PlayerID int) ([]*Cards.Card, error) {
+
+	player, exists := m.Search_Player_ByID(PlayerID)
+	if exists != nil {
+		return nil, errors.New("user not found")
+	}
+
+	return player.GameDeck, nil
+}
