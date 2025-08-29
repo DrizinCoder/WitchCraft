@@ -517,6 +517,7 @@ func handleGetDeckResponse(data json.RawMessage) {
 	for i := range cards {
 		playerDeck[i] = &cards[i]
 	}
+	fmt.Println("Deck de jogo carregado com sucesso!")
 }
 
 func handlePongResponse() {
