@@ -37,14 +37,14 @@ type Match struct {
 	MatchChan chan Match_Message
 }
 
-func New_match(id int, player1 *Player.Player, player2 *Player.Player, TYpe MatchType, state MatchState) *Match {
+func New_match(id int, player1 *Player.Player, player2 *Player.Player, TYpe MatchType, state MatchState, turn int) *Match {
 	return &Match{
 		ID:        id,
 		Player1:   player1,
 		Player2:   player2,
 		Type:      TYpe,
 		State:     state,
-		Turn:      1,
+		Turn:      turn,
 		MatchChan: make(chan Match_Message, 1),
 	}
 }

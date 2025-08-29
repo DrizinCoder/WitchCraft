@@ -22,6 +22,11 @@ type Message struct {
 	Data   json.RawMessage `json:"data"`
 }
 
+type payload struct {
+	Info string `json:"info"`
+	Turn int    `json:"turn"`
+}
+
 var nextID int
 var muID sync.Mutex
 
@@ -39,11 +44,11 @@ func NewMatchManager() *Match_Manager {
 	}
 }
 
-func (m *Match_Manager) CreateMatch(player1 *Player.Player, player2 *Player.Player, TYpe MatchType, state MatchState) *Match {
+func (m *Match_Manager) CreateMatch(player1 *Player.Player, player2 *Player.Player, TYpe MatchType, state MatchState, turn int) *Match {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	match := New_match(generateID(), player1, player2, TYpe, state)
+	match := New_match(generateID(), player1, player2, TYpe, state, turn)
 	m.Matches = append(m.Matches, match)
 
 	return match
@@ -74,7 +79,13 @@ func (m *Match_Manager) Finish(matchID int) {
 }
 
 func (m *Match_Manager) NextTurn(match *Match) {
-	match.Turn = 3 - match.Turn
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if match.Turn == match.Player1.ID {
+		match.Turn = match.Player2.ID
+	} else {
+		match.Turn = match.Player1.ID
+	}
 }
 
 func (m *Match_Manager) Match_Making() {
@@ -90,7 +101,7 @@ func (m *Match_Manager) Match_Making() {
 			player2.In_game = true
 			fmt.Println(player1.Conn.LocalAddr())
 			fmt.Println(player2.Conn.LocalAddr())
-			match := m.CreateMatch(player1, player2, NORMAL, WAITING)
+			match := m.CreateMatch(player1, player2, NORMAL, WAITING, player1.ID)
 			m.Start(match.ID)
 			println("The game Start!")
 			go m.Run_Game(match) //  Go routine que tomará conta do jogo
@@ -136,17 +147,19 @@ func (m *Match_Manager) Run_Game(match *Match) {
 	encoder1 := json.NewEncoder(match.Player1.Conn)
 	encoder2 := json.NewEncoder(match.Player2.Conn)
 
-	Data1, _ := json.Marshal(match.Player2.UserName)
-	Data2, _ := json.Marshal(match.Player1.UserName)
+	Data1 := generatePayload(match.Player2.UserName, match.Turn)
+	Data2 := generatePayload(match.Player1.UserName, match.Turn)
+	Data1_json, _ := json.Marshal(Data1)
+	Data2_json, _ := json.Marshal(Data2)
 
 	alert1 := Message{
 		Action: "Game_start",
-		Data:   Data1,
+		Data:   Data1_json,
 	}
 
 	alert2 := Message{
 		Action: "Game_start",
-		Data:   Data2,
+		Data:   Data2_json,
 	}
 
 	encoder1.Encode(alert1)
@@ -165,13 +178,15 @@ func (m *Match_Manager) processAction(match *Match, msg Match_Message, encoder1 
 	switch msg.Action {
 	case "play_card":
 		fmt.Println("Jogador", msg.PlayerId, "jogou carta:", msg.Data)
+		m.NextTurn(match)
 		if msg.PlayerId == match.Player1.ID {
-			m.sendToOpponent(msg, encoder2)
+			m.sendToOpponent(msg, encoder2, match.Turn)
+			m.sendToPlayer(encoder1, match.Turn)
 		} else {
-			m.sendToOpponent(msg, encoder1)
+			m.sendToOpponent(msg, encoder1, match.Turn)
+			m.sendToPlayer(encoder2, match.Turn)
 		}
 	case "end_turn":
-		match.Turn = 3 - match.Turn
 		// m.sendToOpponent(match, msg.PlayerId, msg)
 	}
 }
@@ -186,11 +201,11 @@ func (m *Match_Manager) FindMatchByPlayerID(playerId int) *Match {
 	return nil
 }
 
-func (m *Match_Manager) sendToOpponent(msg Match_Message, encoder *json.Encoder) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (m *Match_Manager) sendToOpponent(msg Match_Message, encoder *json.Encoder, turn int) { // colocar para exibir o username ao em vez de ID
 
-	data := fmt.Sprintf("Jogador %d jogou carta: %s", msg.PlayerId, msg.Data)
+	initial := fmt.Sprintf("Jogador %d jogou carta: %s", msg.PlayerId, msg.Data)
+
+	data := generatePayload(initial, turn)
 
 	data_json, _ := json.Marshal(data)
 
@@ -200,4 +215,28 @@ func (m *Match_Manager) sendToOpponent(msg Match_Message, encoder *json.Encoder)
 	}
 
 	encoder.Encode(payload)
+}
+
+func (m *Match_Manager) sendToPlayer(encoder *json.Encoder, turn int) {
+
+	initial := "Mensagem do servidor: "
+	data := generatePayload(initial, turn)
+
+	data_json, _ := json.Marshal(data)
+
+	payload := Message{
+		Action: "game_response",
+		Data:   data_json,
+	}
+
+	encoder.Encode(payload)
+}
+
+func generatePayload(info string, turn int) payload {
+	Data := payload{
+		Info: info,
+		Turn: turn,
+	}
+
+	return Data
 }

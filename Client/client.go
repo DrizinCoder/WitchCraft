@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -35,12 +36,24 @@ type Req_id struct {
 	ID int `json:"id"`
 }
 
+type payload struct {
+	Info string `json:"info"`
+	Turn int    `json:"turn"`
+}
+
 var session_id int
 var start time.Time
 var channel chan int
 var encoder *json.Encoder
+
 var playerInventory []*Cards.Card
+var playerInventoryMutex sync.RWMutex
+
 var playerDeck []*Cards.Card
+var playerDeckMutex sync.RWMutex
+
+var gameTurn int
+var gameTurnMutex sync.RWMutex
 
 func Setup() {
 
@@ -141,8 +154,7 @@ func handleConnection(decoder *json.Decoder) {
 		case "set_deck_response":
 			handleSetDeckResponse(payload.Data)
 		case "Game_start":
-			channel <- 99
-			fmt.Printf("O jogo foi iniciado. Pareado com: %s", payload.Data)
+			handleGameStartResponse(payload.Data)
 		case "game_response":
 			handleGameResponse(payload.Data)
 		case "get_deck_response":
@@ -227,7 +239,10 @@ func seeInventory() {
 		fmt.Println("❌ Opção inválida, você deve estar logado para completar essa ação")
 		return
 	}
+
+	playerInventoryMutex.RLock()
 	if len(playerInventory) == 0 {
+		playerInventoryMutex.RUnlock()
 		fmt.Println("Sem cartas no inventário.")
 		return
 	}
@@ -238,11 +253,15 @@ func seeInventory() {
 			i+1, c.Name, c.Power, c.Life, c.Rarity)
 	}
 
+	inventoryCopy := make([]*Cards.Card, len(playerInventory))
+	copy(inventoryCopy, playerInventory)
+	playerInventoryMutex.RUnlock()
+
 	fmt.Println("\nDeseja montar seu deck de 3 cartas? (s/n)")
 	var choice string
 	fmt.Scanln(&choice)
 	if choice == "s" || choice == "S" {
-		chooseDeck(playerInventory)
+		chooseDeck(inventoryCopy)
 	}
 }
 
@@ -269,7 +288,6 @@ func chooseDeck(inventory []*Cards.Card) {
 			continue
 		}
 
-		// Evita escolha duplicada
 		duplicate := false
 		for _, idx := range selectedIndexes {
 			if idx == choice-1 {
@@ -286,17 +304,15 @@ func chooseDeck(inventory []*Cards.Card) {
 		selectedIndexes = append(selectedIndexes, choice-1)
 	}
 
-	// Cria o deck usando referências do inventário local
 	var selectedCards []*Cards.Card
 	for _, idx := range selectedIndexes {
 		selectedCards = append(selectedCards, inventory[idx])
 	}
 
-	// Armazena o deck localmente no cliente
+	playerDeckMutex.Lock()
 	playerDeck = selectedCards
-	_ = playerDeck
+	playerDeckMutex.Unlock()
 
-	// Envia para o servidor
 	payload := map[string]interface{}{
 		"player_id": session_id,
 		"deck":      selectedCards,
@@ -412,6 +428,7 @@ func handleLoginPlayerResponse(data json.RawMessage) {
 	fmt.Println("Username", resp.UserName)
 
 	session_id = resp.ID
+	gameTurn = 0
 
 	go func() {
 		payload := Req_id{ID: session_id}
@@ -434,12 +451,14 @@ func handleOpenPackResponse(data json.RawMessage) {
 		return
 	}
 
+	playerInventoryMutex.Lock()
 	fmt.Println("Pacote Aberto. Cartas: ")
 	for i, c := range cards {
 		fmt.Printf("- %s (Power: %d, Life: %d, Rarity: %s)\n",
 			c.Name, c.Power, c.Life, c.Rarity)
 		playerInventory = append(playerInventory, &cards[i])
 	}
+	playerInventoryMutex.Unlock()
 }
 
 func handleSearchPlayerResponse(data json.RawMessage) {
@@ -497,11 +516,13 @@ func handleSeeInventoryResponse(data json.RawMessage) {
 		return
 	}
 
+	playerInventoryMutex.Lock()
 	playerInventory = make([]*Cards.Card, len(cards))
-	playerDeck = make([]*Cards.Card, 0)
 	for i := range cards {
 		playerInventory[i] = &cards[i]
 	}
+	playerInventoryMutex.Unlock()
+
 	fmt.Println("Inventário carregado com sucesso! Total de cartas:", len(playerInventory))
 }
 
@@ -541,7 +562,8 @@ func handleSetDeckResponse(data json.RawMessage) {
 }
 
 func handleGameResponse(data json.RawMessage) {
-	var resp string
+
+	var resp payload
 
 	err := json.Unmarshal(data, &resp)
 
@@ -550,7 +572,41 @@ func handleGameResponse(data json.RawMessage) {
 		return
 	}
 
-	fmt.Println(resp)
+	gameTurnMutex.Lock()
+	gameTurn = resp.Turn
+	gameTurnMutex.Unlock()
+
+	if resp.Turn == session_id {
+		fmt.Printf("%s. Seu turno, realize sua jogada", resp.Info)
+	} else {
+		fmt.Printf("%s. Aguarde seu turno para jogar", resp.Info)
+	}
+
+}
+
+func handleGameStartResponse(data json.RawMessage) {
+	var resp payload
+
+	err := json.Unmarshal(data, &resp)
+
+	if err != nil {
+		fmt.Println("Erro ao decodificar pacote de dados: ", err)
+		return
+	}
+
+	gameTurnMutex.Lock()
+	gameTurn = resp.Turn
+	gameTurnMutex.Unlock()
+
+	channel <- 99
+	fmt.Printf("O Jogo iniciou! Pareado com o jogador: %s", resp.Info)
+
+	if resp.Turn == session_id {
+		fmt.Printf("%s. Seu turno, realize sua jogada", resp.Info)
+	} else {
+		fmt.Printf("%s. Aguarde seu turno para jogar", resp.Info)
+	}
+
 }
 
 func sendRequest(encoder *json.Encoder, action string, payload any) {
@@ -586,20 +642,28 @@ func GameMenu(encoder *json.Encoder) {
 		var action int
 		fmt.Scanln(&action)
 
-		switch action {
-		case 1:
-			play_card(encoder)
-		case 2:
-			fmt.Println("⏭️ Você passou o turno.")
-			pass_turn(encoder)
-		case 3:
-			fmt.Println("⚔️ Você escolheu Atacar.")
-			attack(encoder)
-		case 0:
-			fmt.Println("↩️ Voltando ao menu principal...")
-			return
-		default:
-			fmt.Println("❌ Opção inválida. Tente novamente.")
+		gameTurnMutex.RLock()
+		turn := gameTurn
+		gameTurnMutex.RUnlock()
+
+		if turn != session_id {
+			fmt.Println("❌ Ainda não é seu turno.")
+		} else {
+			switch action {
+			case 1:
+				play_card(encoder)
+			case 2:
+				fmt.Println("⏭️ Você passou o turno.")
+				pass_turn(encoder)
+			case 3:
+				fmt.Println("⚔️ Você escolheu Atacar.")
+				attack(encoder)
+			case 0:
+				fmt.Println("↩️ Voltando ao menu principal...")
+				return
+			default:
+				fmt.Println("❌ Opção inválida. Tente novamente.")
+			}
 		}
 	}
 }
