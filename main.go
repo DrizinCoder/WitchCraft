@@ -4,6 +4,7 @@ package main
 import (
 	client "WitchCraft/Client"
 	"WitchCraft/api"
+	"WitchCraft/stress"
 	"fmt"
 	"os"
 )
@@ -18,6 +19,9 @@ func main() {
 	case "client":
 		fmt.Println("Iniciando cliente WitchCraft...")
 		client.Setup()
+	case "stress":
+		fmt.Println("Iniciando teste de estresse...")
+		stress.Run()
 	default:
 		fmt.Println("Defina a variável MODE com 'server' ou 'client'")
 	}

@@ -179,14 +179,41 @@ func (m *Match_Manager) Run_Game(match *Match) {
 			if player1_play && player2_play {
 				player1_play = false
 				player2_play = false
+
 				m.processBattle(match, encoder1, encoder2, &player1_points, &player2_points)
 
 				match.Round++
 				match.PlayedCard1 = nil
 				match.PlayedCard2 = nil
 
+				fmt.Printf("Round: %d\n", match.Round)
+
 				if match.Round >= 3 {
 					m.Finish(match.ID)
+					if match.Round >= 3 {
+						match.State = FINISHED
+
+						finalPayload1 := generatePayload("🛑 Partida finalizada.", match.Turn)
+						finalPayload2 := generatePayload("🛑 Partida finalizada.", match.Turn)
+
+						finalPayloadJSON1, _ := json.Marshal(finalPayload1)
+						finalPayloadJSON2, _ := json.Marshal(finalPayload2)
+
+						alert1 := Message{
+							Action: "game_finish",
+							Data:   finalPayloadJSON1,
+						}
+						alert2 := Message{
+							Action: "game_finish",
+							Data:   finalPayloadJSON2,
+						}
+
+						encoder1.Encode(alert1)
+						encoder2.Encode(alert2)
+
+						fmt.Println("FINALIZANDO PARTIDA !!!")
+						return
+					}
 					return
 				}
 			}
@@ -213,16 +240,22 @@ func (m *Match_Manager) processAction(match *Match, msg Match_Message, encoder1 
 		atribute := play.Atribute
 
 		if msg.PlayerId == match.Player1.ID {
+			// player1 jogou
 			match.PlayedCard1 = &PlayedCard{Card: *card, Atribute: atribute}
 			*p1p = true
+
+			m.NextTurn(match)
+			m.sendToPlayer(encoder1, match.Turn)        // envia "aguarde" para o player1
+			m.sendToOpponent(msg, encoder2, match.Turn) // envia carta para player2
 		} else {
+			// player2 jogou
 			match.PlayedCard2 = &PlayedCard{Card: *card, Atribute: atribute}
 			*p2p = true
-		}
 
-		m.NextTurn(match)
-		m.sendToOpponent(msg, encoder2, match.Turn)
-		m.sendToPlayer(encoder1, match.Turn)
+			m.NextTurn(match)
+			m.sendToPlayer(encoder2, match.Turn)        // envia "aguarde" para player2
+			m.sendToOpponent(msg, encoder1, match.Turn) // envia carta para player1
+		}
 	}
 }
 
@@ -254,15 +287,17 @@ func (m *Match_Manager) processBattle(match *Match, encoder1 *json.Encoder, enco
 
 	var result string
 	if val1 > val2 {
-		result = fmt.Sprintf("%s venceu a rodada com %s!", match.Player1.UserName, card1.Atribute)
+		result = fmt.Sprintf("\n%s venceu a rodada com %s!\n", match.Player1.UserName, card1.Atribute)
 		*player1_points++
 		match.Turn = match.Player1.ID
 	} else if val2 > val1 {
-		result = fmt.Sprintf("%s venceu a rodada com %s!", match.Player2.UserName, card2.Atribute)
+		result = fmt.Sprintf("\n%s venceu a rodada com %s!\n", match.Player2.UserName, card2.Atribute)
 		*player2_points++
 		match.Turn = match.Player2.ID
 	} else {
-		result = fmt.Sprintf("Empate na rodada com %s!", card1.Atribute)
+		result = fmt.Sprintf("\nEmpate na rodada com %s!\n", card1.Atribute)
+		*player1_points++
+		*player2_points++
 	}
 
 	data := generatePayload(result, match.Turn)
@@ -319,7 +354,7 @@ func (m *Match_Manager) sendToOpponent(msg Match_Message, encoder *json.Encoder,
 		}
 	}
 
-	initial := fmt.Sprintf("🃏 %s jogou a carta: %s (Power: %d | Life: %d | Inteligência: %d | Raridade: %s)\n🔰 Atributo escolhido: %s",
+	initial := fmt.Sprintf("\n🃏 %s jogou a carta: %s (Power: %d | Life: %d | Inteligência: %d | Raridade: %s)\n🔰 Atributo escolhido: %s\n",
 		playerName, card.Name, card.Power, card.Life, card.Inteligence, card.Rarity, attr)
 
 	data := generatePayload(initial, turn)
@@ -335,7 +370,7 @@ func (m *Match_Manager) sendToOpponent(msg Match_Message, encoder *json.Encoder,
 }
 
 func (m *Match_Manager) sendToPlayer(encoder *json.Encoder, turn int) {
-	initial := "✅ Carta enviada com sucesso. Aguarde o oponente."
+	initial := "\n✅ Aguarde o oponente.\n"
 	data := generatePayload(initial, turn)
 
 	data_json, _ := json.Marshal(data)

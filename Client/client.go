@@ -159,6 +159,8 @@ func handleConnection(decoder *json.Decoder) {
 			handleGameResponse(payload.Data)
 		case "get_deck_response":
 			handleGetDeckResponse(payload.Data)
+		case "game_finish":
+			fmt.Println("ERA PARA ESSA PORRA ACABAR AQUI!!!")
 		}
 	}
 

@@ -44,7 +44,7 @@ clean: rm-server
 	-docker network rm $(NETWORK_NAME) || true
 	@echo "Limpeza completa!"
 
-.PHON: help
+.PHONY: help
 help:
 	@echo "--- Lista de Comandos Makefile ---"
 	@echo "network -> Cria Rede docker"
@@ -53,3 +53,15 @@ help:
 	@echo "run-client -> Roda container do cliente"
 	@echo "restart -> Reinicia server após modificação de código"
 	@echo "clean -> Limpa projeto"
+
+.PHONY: run-stress
+run-stress:
+	@echo "Rodando stress test contra '$(SERVER_CONTAINER):8080'..."
+	docker run --rm --network $(NETWORK_NAME) \
+		-e MODE=stress \
+		-e SERVER_ADDR=$(SERVER_CONTAINER):8080 \
+		-e STRESS_CONCURRENCY=21000 \
+		-e STRESS_REQUESTS=5 \
+		-e STRESS_TIMEOUT_MS=2000 \
+		-e STRESS_RAMP_MS=0 \
+		$(CLIENT_IMAGE)
