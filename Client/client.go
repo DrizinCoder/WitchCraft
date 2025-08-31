@@ -45,6 +45,7 @@ var session_id int
 var start time.Time
 var channel chan int
 var encoder *json.Encoder
+var gamefinish bool
 
 var playerInventory []*Cards.Card
 var playerInventoryMutex sync.RWMutex
@@ -160,7 +161,13 @@ func handleConnection(decoder *json.Decoder) {
 		case "get_deck_response":
 			handleGetDeckResponse(payload.Data)
 		case "game_finish":
-			fmt.Println("ERA PARA ESSA PORRA ACABAR AQUI!!!")
+			var resp string
+
+			_ = json.Unmarshal(payload.Data, &resp)
+
+			fmt.Println("\n" + resp + "\n")
+			fmt.Println("\n Aperte Enter para voltar ao menu principal.")
+			gamefinish = true
 		}
 	}
 
@@ -650,7 +657,11 @@ func sendRequest(encoder *json.Encoder, action string, payload any) {
 }
 
 func GameMenu(encoder *json.Encoder) {
+	gamefinish = false
 	for {
+		if gamefinish == true {
+			break
+		}
 		fmt.Println("\n==============================")
 		fmt.Println(" ⚔️  WitchCraft - Batalha ")
 		fmt.Println("==============================")
@@ -666,19 +677,18 @@ func GameMenu(encoder *json.Encoder) {
 		gameTurnMutex.RLock()
 		turn := gameTurn
 		gameTurnMutex.RUnlock()
-
-		if turn != session_id {
-			fmt.Println("❌ Ainda não é seu turno.")
-		} else {
-			switch action {
-			case 1:
+		switch action {
+		case 1:
+			if turn != session_id {
+				fmt.Println("❌ Ainda não é seu turno.")
+			} else {
 				play_card(encoder)
-			case 0:
-				fmt.Println("↩️ Voltando ao menu principal...")
-				return
-			default:
-				fmt.Println("❌ Opção inválida. Tente novamente.")
 			}
+		case 0:
+			fmt.Println("↩️ Voltando ao menu principal...")
+			return
+		default:
+			fmt.Println("❌ Opção inválida. Tente novamente.")
 		}
 	}
 }

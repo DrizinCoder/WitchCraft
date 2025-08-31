@@ -193,8 +193,15 @@ func (m *Match_Manager) Run_Game(match *Match) {
 					if match.Round >= 3 {
 						match.State = FINISHED
 
-						finalPayload1 := generatePayload("🛑 Partida finalizada.", match.Turn)
-						finalPayload2 := generatePayload("🛑 Partida finalizada.", match.Turn)
+						var Winner *Player.Player
+						if player1_points > player2_points {
+							Winner = match.Player1
+						} else {
+							Winner = match.Player2
+						}
+
+						finalPayload1 := fmt.Sprintf("🛑 Partida finalizada. Vencedor: %s", Winner.UserName)
+						finalPayload2 := fmt.Sprintf("🛑 Partida finalizada. Vencedor: %s", Winner.UserName)
 
 						finalPayloadJSON1, _ := json.Marshal(finalPayload1)
 						finalPayloadJSON2, _ := json.Marshal(finalPayload2)
