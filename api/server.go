@@ -28,11 +28,13 @@ var playerManager = Player.NewManager()
 var stock = Cards.NewStock()
 var matchManager = match.NewMatchManager()
 var logged_players map[string]*Player.Player
+var connToPlayer map[net.Conn]*Player.Player
 var logged_players_mutex sync.Mutex
 
 func Setup() {
 
 	logged_players = make(map[string]*Player.Player)
+	connToPlayer = make(map[net.Conn]*Player.Player)
 
 	stockSize := 1000000
 	rand.Seed(time.Now().UnixNano())
@@ -89,7 +91,46 @@ func handleConnection(conn net.Conn) {
 		err := decoder.Decode(&msg)
 		if err != nil {
 			fmt.Println("Erro ao decodificar mensagem:", err)
-			return // this can be better of course!
+
+			player, ok := connToPlayer[conn]
+			if ok {
+				// 1. Se jogador estava em partida
+				if player.In_game {
+					match := matchManager.FindMatchByPlayerID(player.ID)
+					if match != nil {
+						// avisa o outro player que a partida acabou
+						var opponent *Player.Player
+						if match.Player1.ID == player.ID {
+							opponent = match.Player2
+						} else {
+							opponent = match.Player1
+						}
+
+						opponent.In_game = false
+
+						finalPayload := fmt.Sprintf("🛑 Partida finalizada. O jogador %s desconectou.", player.UserName)
+						finalPayloadJSON, _ := json.Marshal(finalPayload)
+
+						alert := Message{
+							Action: "game_finish",
+							Data:   finalPayloadJSON,
+						}
+
+						encoder := json.NewEncoder(opponent.Conn)
+						encoder.Encode(alert)
+
+						matchManager.RemoveMatch(match.ID)
+					}
+				}
+
+				// 2. Remover do mapa de logados
+				logged_players_mutex.Lock()
+				delete(logged_players, player.UserName)
+				delete(connToPlayer, conn)
+				logged_players_mutex.Unlock()
+			}
+
+			return
 		}
 
 		switch msg.Action {
@@ -192,6 +233,7 @@ func loginPlayerHandler(msg Message, encoder *json.Encoder, conn net.Conn) {
 
 	logged_players_mutex.Lock()
 	logged_players[r.Login] = player
+	connToPlayer[conn] = player
 	logged_players_mutex.Unlock()
 
 	response := PlayerResponse{
