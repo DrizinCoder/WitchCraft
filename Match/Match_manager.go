@@ -56,6 +56,18 @@ func (m *Match_Manager) CreateMatch(player1 *Player.Player, player2 *Player.Play
 
 }
 
+func (m *Match_Manager) RemoveMatch(matchID int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for i, match := range m.Matches {
+		if match.ID == matchID {
+			m.Matches = append(m.Matches[:i], m.Matches[i+1:]...)
+			break
+		}
+	}
+}
+
 func (m *Match_Manager) Start(matchID int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -200,8 +212,13 @@ func (m *Match_Manager) Run_Game(match *Match) {
 							Winner = match.Player2
 						}
 
+						m.RemoveMatch(match.ID)
+
 						finalPayload1 := fmt.Sprintf("🛑 Partida finalizada. Vencedor: %s", Winner.UserName)
 						finalPayload2 := fmt.Sprintf("🛑 Partida finalizada. Vencedor: %s", Winner.UserName)
+
+						match.Player1.In_game = false
+						match.Player2.In_game = false
 
 						finalPayloadJSON1, _ := json.Marshal(finalPayload1)
 						finalPayloadJSON2, _ := json.Marshal(finalPayload2)
@@ -232,6 +249,33 @@ func (m *Match_Manager) Run_Game(match *Match) {
 func (m *Match_Manager) processAction(match *Match, msg Match_Message, encoder1 *json.Encoder, encoder2 *json.Encoder, p1p *bool, p2p *bool) {
 	switch msg.Action {
 	case "play_card":
+		// 1) Checar se é o turno do jogador
+		if msg.PlayerId != match.Turn {
+			// Opcional: responder só para quem tentou jogar fora do turno
+			notYourTurn := generatePayload("❌ Não é seu turno.", match.Turn)
+			nytb, _ := json.Marshal(notYourTurn)
+			target := encoder1
+			if match.Player2.ID == msg.PlayerId {
+				target = encoder2
+			}
+			_ = target.Encode(Message{Action: "game_response", Data: nytb})
+			return
+		}
+
+		// 2) Bloquear segunda jogada na mesma rodada
+		if msg.PlayerId == match.Player1.ID && *p1p {
+			already := generatePayload("❌ Você já jogou nesta rodada.", match.Turn)
+			ab, _ := json.Marshal(already)
+			_ = encoder1.Encode(Message{Action: "game_response", Data: ab})
+			return
+		}
+		if msg.PlayerId == match.Player2.ID && *p2p {
+			already := generatePayload("❌ Você já jogou nesta rodada.", match.Turn)
+			ab, _ := json.Marshal(already)
+			_ = encoder2.Encode(Message{Action: "game_response", Data: ab})
+			return
+		}
+
 		var play struct {
 			Card     *Cards.Card `json:"card"`
 			Atribute string      `json:"atribute"`
@@ -320,6 +364,8 @@ func (m *Match_Manager) processBattle(match *Match, encoder1 *json.Encoder, enco
 }
 
 func (m *Match_Manager) FindMatchByPlayerID(playerId int) *Match {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	for i := range m.Matches {
 		match := m.Matches[i]
 		if match.Player1.ID == playerId || match.Player2.ID == playerId {

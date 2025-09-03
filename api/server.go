@@ -7,7 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
+	"sync"
+	"time"
 )
 
 type Message struct {
@@ -25,24 +28,32 @@ var playerManager = Player.NewManager()
 var stock = Cards.NewStock()
 var matchManager = match.NewMatchManager()
 var logged_players map[string]*Player.Player
+var logged_players_mutex sync.Mutex
 
 func Setup() {
 
 	logged_players = make(map[string]*Player.Player)
 
-	stock.CreateCard("Fireball", 10, 5, 2, Cards.GOLD)
-	stock.CreateCard("Icebolt", 8, 6, 7, Cards.SILVER)
-	stock.CreateCard("Goblin", 5, 10, 9, Cards.BRONZE)
-	stock.CreateCard("Dragon", 20, 20, 11, Cards.DIAMOND)
-	stock.CreateCard("Knight", 12, 15, 16, Cards.SILVER)
-	stock.CreateCard("Elf", 7, 8, 12, Cards.BRONZE)
+	stockSize := 1000000
+	rand.Seed(time.Now().UnixNano())
 
-	stock.CreateCard("Iceball", 10, 5, 2, Cards.GOLD)
-	stock.CreateCard("White_Knight", 8, 6, 7, Cards.SILVER)
-	stock.CreateCard("Giant_goblin", 5, 10, 9, Cards.BRONZE)
-	stock.CreateCard("Dragon_Black", 20, 20, 11, Cards.DIAMOND)
-	stock.CreateCard("Elder_witch", 12, 15, 16, Cards.SILVER)
-	stock.CreateCard("Elf_elder", 7, 8, 12, Cards.BRONZE)
+	rarities := []Cards.Rare{Cards.BRONZE, Cards.SILVER, Cards.GOLD, Cards.DIAMOND}
+	names := []string{
+		"Fireball", "Icebolt", "Goblin", "Dragon", "Knight", "Elf",
+		"Iceball", "White_Knight", "Giant_goblin", "Dragon_Black", "Elder_witch", "Elf_elder",
+	}
+
+	for i := 0; i < stockSize; i++ {
+		base := names[i%len(names)]
+		name := fmt.Sprintf("%s_%d", base, i)
+
+		power := rand.Intn(20) + 1 // 1..20
+		life := rand.Intn(25) + 1  // 1..25
+		intel := rand.Intn(15) + 1 // 1..15
+		rarity := rarities[rand.Intn(len(rarities))]
+
+		stock.CreateCard(name, power, life, rarity, intel)
+	}
 
 	go matchManager.Match_Making()
 
@@ -55,6 +66,7 @@ func Setup() {
 	defer listener.Close()
 
 	for {
+		fmt.Println(len(stock.Deck))
 		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Println("Erro ao conectar:", err)
@@ -161,7 +173,9 @@ func loginPlayerHandler(msg Message, encoder *json.Encoder, conn net.Conn) {
 		return
 	}
 
+	logged_players_mutex.Lock()
 	_, exists := logged_players[r.Login] // Aqui pode ter concorrência
+	logged_players_mutex.Unlock()
 
 	if exists {
 		err := errors.New("user already logged")
@@ -176,7 +190,9 @@ func loginPlayerHandler(msg Message, encoder *json.Encoder, conn net.Conn) {
 		return
 	}
 
+	logged_players_mutex.Lock()
 	logged_players[r.Login] = player
+	logged_players_mutex.Unlock()
 
 	response := PlayerResponse{
 		ID:       player.ID,

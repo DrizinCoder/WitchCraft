@@ -65,8 +65,65 @@ func worker(id int, addr string, requestsPerConn int, timeout time.Duration, out
 	enc := json.NewEncoder(conn)
 	dec := json.NewDecoder(conn)
 
-	msg := Message{Action: "ping", Data: json.RawMessage("null")}
+	// cria usuário único por worker
+	unique := fmt.Sprintf("stress_user_%d_%d", id, time.Now().UnixNano())
+	password := "pwd"
+
+	// 1) create_player
+	createPayload := map[string]string{
+		"username": unique,
+		"login":    unique,
+		"password": password,
+	}
+	req := Message{Action: "create_player", Data: toRaw(createPayload)}
+	if err := enc.Encode(&req); err != nil {
+		out <- result{err: fmt.Errorf("worker %d encode create_player: %w", id, err)}
+		return
+	}
 	var resp Message
+	if err := dec.Decode(&resp); err != nil {
+		out <- result{err: fmt.Errorf("worker %d decode create_player resp: %w", id, err)}
+		return
+	}
+	if resp.Action != "create_player_response" {
+		out <- result{err: fmt.Errorf("worker %d unexpected create_player response: %s", id, resp.Action)}
+		return
+	}
+
+	// 2) login_player
+	loginPayload := map[string]string{
+		"login":    unique,
+		"password": password,
+	}
+	req = Message{Action: "login_player", Data: toRaw(loginPayload)}
+	if err := enc.Encode(&req); err != nil {
+		out <- result{err: fmt.Errorf("worker %d encode login: %w", id, err)}
+		return
+	}
+	if err := dec.Decode(&resp); err != nil {
+		out <- result{err: fmt.Errorf("worker %d decode login resp: %w", id, err)}
+		return
+	}
+	if resp.Action != "login_player_response" {
+		out <- result{err: fmt.Errorf("worker %d unexpected login response: %s", id, resp.Action)}
+		return
+	}
+
+	// extrai player id do response (para usar no open_pack)
+	var loginResp struct {
+		ID int `json:"id"`
+	}
+	if err := json.Unmarshal(resp.Data, &loginResp); err != nil {
+		out <- result{err: fmt.Errorf("worker %d unmarshal login response: %w", id, err)}
+		return
+	}
+	playerID := loginResp.ID
+
+	// 3) repetir open_pack requestsPerConn vezes (medimos estas latências)
+	openReq := Message{
+		Action: "open_pack",
+		Data:   toRaw(map[string]int{"id": playerID}),
+	}
 
 	for i := 0; i < requestsPerConn; i++ {
 		if timeout > 0 {
@@ -74,20 +131,27 @@ func worker(id int, addr string, requestsPerConn int, timeout time.Duration, out
 		}
 
 		start := time.Now()
-		if err := enc.Encode(&msg); err != nil {
-			out <- result{err: fmt.Errorf("worker %d encode: %w", id, err)}
+		if err := enc.Encode(&openReq); err != nil {
+			out <- result{err: fmt.Errorf("worker %d encode open_pack: %w", id, err)}
 			return
 		}
 		if err := dec.Decode(&resp); err != nil {
-			out <- result{err: fmt.Errorf("worker %d decode: %w", id, err)}
+			out <- result{err: fmt.Errorf("worker %d decode open_pack: %w", id, err)}
 			return
 		}
-		if resp.Action != "pong_response" {
-			out <- result{err: fmt.Errorf("worker %d resposta inesperada: %s", id, resp.Action)}
+		if resp.Action != "open_pack_response" {
+			out <- result{err: fmt.Errorf("worker %d unexpected open_pack response: %s", id, resp.Action)}
 			return
 		}
+
 		out <- result{latency: time.Since(start)}
 	}
+}
+
+// helper: converte payload para json.RawMessage (ignora erro — payloads são simples)
+func toRaw(v interface{}) json.RawMessage {
+	b, _ := json.Marshal(v)
+	return json.RawMessage(b)
 }
 
 func percentile(sorted []time.Duration, p float64) time.Duration {

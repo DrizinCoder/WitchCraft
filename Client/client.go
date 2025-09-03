@@ -43,9 +43,10 @@ type payload struct {
 
 var session_id int
 var start time.Time
-var channel chan int
 var encoder *json.Encoder
 var gamefinish bool
+var action int
+var gameStart bool
 
 var playerInventory []*Cards.Card
 var playerInventoryMutex sync.RWMutex
@@ -72,55 +73,12 @@ func Setup() {
 
 	go handleConnection(decoder)
 
-	channel = make(chan int, 1)
-
+	gameStart = false
 	for {
-		fmt.Println("\n==============================")
-		fmt.Println(" 🎮 WitchCraft - Menu Principal ")
-		fmt.Println("==============================")
-		fmt.Println("1️⃣  - Registrar Jogador")
-		fmt.Println("2️⃣  - Login")
-		fmt.Println("3️⃣  - Abrir Pacote de Cartas")
-		fmt.Println("4️⃣  - Buscar Jogador")
-		fmt.Println("5️⃣  - Entrar na Fila")
-		fmt.Println("6️⃣  - Ver inventário")
-		fmt.Println("7️⃣  - Medir Ping")
-		fmt.Println("0️⃣  - Sair")
-		fmt.Println("------------------------------")
-		fmt.Print("👉 Escolha a sua próxima ação: ")
-
-		var action int
-		go func() {
-			fmt.Scanln(&action)
-			if action == 99 {
-				action = 20
-			}
-			channel <- action
-		}()
-
-		change := <-channel
-		switch change {
-		case 1:
-			createPlayer(encoder)
-		case 2:
-			loginPlayer(encoder)
-		case 3:
-			openPack(encoder)
-		case 4:
-			searchPlayer(encoder)
-		case 5:
-			enqueue(encoder)
-		case 6:
-			seeInventory()
-		case 7:
-			ping(encoder)
-		case 0:
-			fmt.Println("👋 Saindo do jogo... Até logo!")
-			return
-		case 99:
+		if !gameStart {
+			main_menu()
+		} else {
 			GameMenu(encoder)
-		default:
-			fmt.Println("❌ Opção inválida, tente novamente.")
 		}
 	}
 
@@ -162,12 +120,12 @@ func handleConnection(decoder *json.Decoder) {
 			handleGetDeckResponse(payload.Data)
 		case "game_finish":
 			var resp string
-
+			gamefinish = true
+			gameStart = false
 			_ = json.Unmarshal(payload.Data, &resp)
 
 			fmt.Println("\n" + resp + "\n")
 			fmt.Println("\n Aperte Enter para voltar ao menu principal.")
-			gamefinish = true
 		}
 	}
 
@@ -410,7 +368,8 @@ func play_card(encoder *json.Encoder) {
 	if err != nil {
 		fmt.Println("Erro ao enviar ação para o servidor:", err)
 	} else {
-		fmt.Printf("🃏 Você jogou a carta: %s\n", req.Card)
+		fmt.Printf("🃏 Você jogou a carta: %s (Power: %d | Life: %d | Inteligência: %d | Raridade: %s)\n",
+			req.Card.Name, req.Card.Power, req.Card.Life, req.Card.Inteligence, req.Card.Rarity)
 	}
 }
 
@@ -626,13 +585,13 @@ func handleGameStartResponse(data json.RawMessage) {
 	gameTurn = resp.Turn
 	gameTurnMutex.Unlock()
 
-	channel <- 99
-	fmt.Printf("O Jogo iniciou! Pareado com o jogador: %s", resp.Info)
+	gameStart = true
+	fmt.Printf("O Jogo iniciou! Pareado com o jogador: %s\nPor favor, pressione enter para entrar na partida.", resp.Info)
 
 	if resp.Turn == session_id {
-		fmt.Printf("%s. Seu turno, realize sua jogada", resp.Info)
+		fmt.Printf("%s. Seu turno, realize sua jogada\n", resp.Info)
 	} else {
-		fmt.Printf("%s. Aguarde seu turno para jogar", resp.Info)
+		fmt.Printf("%s. Aguarde seu turno para jogar\n", resp.Info)
 	}
 
 }
@@ -659,7 +618,7 @@ func sendRequest(encoder *json.Encoder, action string, payload any) {
 func GameMenu(encoder *json.Encoder) {
 	gamefinish = false
 	for {
-		if gamefinish == true {
+		if gamefinish {
 			break
 		}
 		fmt.Println("\n==============================")
@@ -671,13 +630,13 @@ func GameMenu(encoder *json.Encoder) {
 		fmt.Println("------------------------------")
 		fmt.Print("👉 Escolha a sua ação de combate: ")
 
-		var action int
-		fmt.Scanln(&action)
+		var change int
+		fmt.Scanln(&change)
 
 		gameTurnMutex.RLock()
 		turn := gameTurn
 		gameTurnMutex.RUnlock()
-		switch action {
+		switch change {
 		case 1:
 			if turn != session_id {
 				fmt.Println("❌ Ainda não é seu turno.")
@@ -693,9 +652,68 @@ func GameMenu(encoder *json.Encoder) {
 	}
 }
 
+func main_menu() {
+	fmt.Println("\n==============================")
+	fmt.Println(" 🎮 WitchCraft - Menu Principal ")
+	fmt.Println("==============================")
+	fmt.Println("1️⃣  - Registrar Jogador")
+	fmt.Println("2️⃣  - Login")
+	fmt.Println("3️⃣  - Abrir Pacote de Cartas")
+	fmt.Println("4️⃣  - Buscar Jogador")
+	fmt.Println("5️⃣  - Entrar na Fila")
+	fmt.Println("6️⃣  - Ver inventário")
+	fmt.Println("7️⃣  - Medir Ping")
+	fmt.Println("0️⃣  - Sair")
+	fmt.Println("------------------------------")
+	fmt.Print("👉 Escolha a sua próxima ação: ")
+
+	var change int
+	fmt.Scanln(&change)
+	switch change {
+	case 1:
+		createPlayer(encoder)
+	case 2:
+		loginPlayer(encoder)
+	case 3:
+		openPack(encoder)
+	case 4:
+		searchPlayer(encoder)
+	case 5:
+		enqueue(encoder)
+	case 6:
+		seeInventory()
+	case 7:
+		ping(encoder)
+	case 0:
+		fmt.Println("👋 Saindo do jogo... Até logo!")
+		return
+	case 99:
+		GameMenu(encoder)
+	default:
+		fmt.Println("❌ Opção inválida, tente novamente.")
+	}
+}
+
 func prompt(prompt string) string {
 	fmt.Printf("%s", prompt)
 	var input string
 	fmt.Scanln(&input)
 	return input
 }
+
+// func inputReader() {
+// 	for {
+// 		var action int
+// 		fmt.Scanln(&action)
+
+// 		if action == 99 {
+// 			action = 20
+// 		}
+
+// 		if !gameStart {
+// 			channel <- action
+// 		} else {
+// 			gameChannel <- action
+// 		}
+// 	}
+// }
