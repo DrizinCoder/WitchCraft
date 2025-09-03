@@ -15,6 +15,7 @@ func main() {
 	switch mode {
 	case "server":
 		fmt.Println("Iniciando servidor WitchCraft...")
+		go api.StartUDPServer(":9999")
 		api.Setup()
 	case "client":
 		fmt.Println("Iniciando cliente WitchCraft...")

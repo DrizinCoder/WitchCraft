@@ -25,7 +25,7 @@ run-server:
 .PHONY: run-client
 run-client:
 	@echo "Rodando o container do cliente..."
-	docker run -it --network $(NETWORK_NAME) -e MODE=client -e SERVER_ADDR=$(SERVER_CONTAINER):8080 $(CLIENT_IMAGE)
+	docker run -it --network $(NETWORK_NAME) -e MODE=client -e UDP_SERVER_ADDR=$(SERVER_CONTAINER):9999 -e SERVER_ADDR=$(SERVER_CONTAINER):8080 $(CLIENT_IMAGE)
 
 .PHONY: rm-server
 rm-server:

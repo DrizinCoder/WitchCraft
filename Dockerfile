@@ -20,5 +20,6 @@ COPY --from=builder /app/app .
 # Usa variável de ambiente MODE
 ENV MODE=server
 ENV SERVER_ADDR=127.0.0.1:8080
+ENV UDP_SERVER_ADDR=server:9999
 
 CMD ["./app"]

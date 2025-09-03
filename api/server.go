@@ -91,45 +91,7 @@ func handleConnection(conn net.Conn) {
 		err := decoder.Decode(&msg)
 		if err != nil {
 			fmt.Println("Erro ao decodificar mensagem:", err)
-
-			player, ok := connToPlayer[conn]
-			if ok {
-				// 1. Se jogador estava em partida
-				if player.In_game {
-					match := matchManager.FindMatchByPlayerID(player.ID)
-					if match != nil {
-						// avisa o outro player que a partida acabou
-						var opponent *Player.Player
-						if match.Player1.ID == player.ID {
-							opponent = match.Player2
-						} else {
-							opponent = match.Player1
-						}
-
-						opponent.In_game = false
-
-						finalPayload := fmt.Sprintf("🛑 Partida finalizada. O jogador %s desconectou.", player.UserName)
-						finalPayloadJSON, _ := json.Marshal(finalPayload)
-
-						alert := Message{
-							Action: "game_finish",
-							Data:   finalPayloadJSON,
-						}
-
-						encoder := json.NewEncoder(opponent.Conn)
-						encoder.Encode(alert)
-
-						matchManager.RemoveMatch(match.ID)
-					}
-				}
-
-				// 2. Remover do mapa de logados
-				logged_players_mutex.Lock()
-				delete(logged_players, player.UserName)
-				delete(connToPlayer, conn)
-				logged_players_mutex.Unlock()
-			}
-
+			handleDisconnect(conn)
 			return
 		}
 
@@ -146,8 +108,6 @@ func handleConnection(conn net.Conn) {
 			enqueue(msg, encoder)
 		case "see_inventory":
 			getInventoryHandler(msg, encoder)
-		case "ping":
-			pingHandler(encoder)
 		case "Game_Action":
 			gameAction(msg)
 		case "set_deck":
@@ -491,15 +451,51 @@ func getDeckHandler(msg Message, encoder *json.Encoder) {
 	encoder.Encode(final_msg)
 }
 
-func pingHandler(encoder *json.Encoder) {
-	a := "a"
-	data_json, _ := json.Marshal(a)
-	final_msg := Message{
-		Action: "pong_response",
-		Data:   data_json,
+func handleDisconnect(conn net.Conn) {
+	logged_players_mutex.Lock()
+	player, ok := connToPlayer[conn]
+	logged_players_mutex.Unlock()
+
+	if !ok {
+		return
 	}
 
-	encoder.Encode(final_msg)
+	fmt.Printf("⚠️ Jogador %s desconectou.\n", player.UserName)
+
+	if player.In_game {
+		match := matchManager.FindMatchByPlayerID(player.ID)
+		if match != nil {
+			var opponent *Player.Player
+			if match.Player1.ID == player.ID {
+				opponent = match.Player2
+			} else {
+				opponent = match.Player1
+			}
+
+			player.In_game = false
+			opponent.In_game = false
+
+			finalPayload := fmt.Sprintf("🛑 Partida finalizada. O jogador %s desconectou.", player.UserName)
+			finalPayloadJSON, _ := json.Marshal(finalPayload)
+
+			alert := Message{
+				Action: "game_finish",
+				Data:   finalPayloadJSON,
+			}
+
+			if opponent.Conn != nil {
+				enc := json.NewEncoder(opponent.Conn)
+				_ = enc.Encode(alert)
+			}
+
+			matchManager.RemoveMatch(match.ID)
+		}
+	}
+
+	logged_players_mutex.Lock()
+	delete(logged_players, player.UserName)
+	delete(connToPlayer, conn)
+	logged_players_mutex.Unlock()
 }
 
 func send_error(err error, encoder *json.Encoder) {

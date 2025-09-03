@@ -57,10 +57,16 @@ var playerDeckMutex sync.RWMutex
 var gameTurn int
 var gameTurnMutex sync.RWMutex
 
+var lastPing time.Duration
+var lastPingMutex sync.RWMutex
+
 func Setup() {
 
 	serverAddr := os.Getenv("SERVER_ADDR")
+	udpserverAddr := os.Getenv("UDP_SERVER_ADDR")
+	fmt.Println(udpserverAddr)
 	conn, err := net.Dial("tcp", serverAddr)
+	go startUDPPing(udpserverAddr)
 
 	if err != nil {
 		fmt.Println("Erro ao iniciar servidor:", err)
@@ -108,8 +114,6 @@ func handleConnection(decoder *json.Decoder) {
 			handleErrorResponse(payload.Data)
 		case "see_inventory_response":
 			handleSeeInventoryResponse(payload.Data)
-		case "pong_response":
-			handlePongResponse()
 		case "set_deck_response":
 			handleSetDeckResponse(payload.Data)
 		case "Game_start":
@@ -129,6 +133,52 @@ func handleConnection(decoder *json.Decoder) {
 		}
 	}
 
+}
+
+func startUDPPing(addr string) {
+	go func() {
+		conn, err := net.Dial("udp", addr)
+		if err != nil {
+			fmt.Println("Erro ao conectar no servidor UDP:", err)
+			return
+		}
+		defer conn.Close()
+
+		buf := make([]byte, 1024)
+
+		for {
+			start := time.Now()
+
+			msg := Message{
+				Action: "ping",
+				Data:   json.RawMessage(`{}`),
+			}
+
+			payload, _ := json.Marshal(msg)
+			_, err := conn.Write(payload)
+			if err != nil {
+				fmt.Println("Erro ao enviar ping:", err)
+				time.Sleep(3 * time.Second)
+				continue
+			}
+
+			conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+			n, err := conn.Read(buf)
+			if err != nil {
+				fmt.Println("Erro ao ler resposta UDP:", err)
+			} else {
+				var resp Message
+				if json.Unmarshal(buf[:n], &resp) == nil && resp.Action == "pong" {
+					elapsed := time.Since(start)
+					lastPingMutex.Lock()
+					lastPing = elapsed
+					lastPingMutex.Unlock()
+				}
+			}
+
+			time.Sleep(3 * time.Second)
+		}
+	}()
 }
 
 func createPlayer(encoder *json.Encoder) {
@@ -287,13 +337,6 @@ func chooseDeck(inventory []*Cards.Card) {
 	sendRequest(encoder, "set_deck", payload)
 
 	fmt.Println("Deck escolhido com sucesso!")
-}
-
-func ping(encoder *json.Encoder) {
-	start = time.Now()
-
-	payload := ""
-	sendRequest(encoder, "ping", payload)
 }
 
 func play_card(encoder *json.Encoder) {
@@ -528,11 +571,6 @@ func handleGetDeckResponse(data json.RawMessage) {
 	fmt.Println("Deck de jogo carregado com sucesso!")
 }
 
-func handlePongResponse() {
-	elapsed := time.Since(start)
-	fmt.Printf("Ping: %s\n", elapsed)
-}
-
 func handleSetDeckResponse(data json.RawMessage) {
 	var resp map[string]string
 	err := json.Unmarshal(data, &resp)
@@ -622,7 +660,9 @@ func GameMenu(encoder *json.Encoder) {
 			break
 		}
 		fmt.Println("\n==============================")
-		fmt.Println(" ⚔️  WitchCraft - Batalha ")
+		lastPingMutex.RLock()
+		fmt.Printf(" ⚔️  WitchCraft - Batalha (📡 %s)\n", lastPing)
+		lastPingMutex.RUnlock()
 		fmt.Println("==============================")
 		fmt.Println("1️⃣  - Jogar Carta")
 		fmt.Println("2️⃣  - Passar Turno")
@@ -654,15 +694,20 @@ func GameMenu(encoder *json.Encoder) {
 
 func main_menu() {
 	fmt.Println("\n==============================")
-	fmt.Println(" 🎮 WitchCraft - Menu Principal ")
+	lastPingMutex.RLock()
+	if lastPing > 0 {
+		fmt.Printf(" 🎮 WitchCraft - Menu Principal (📡 %s)\n", lastPing)
+	} else {
+		fmt.Println(" 🎮 WitchCraft - Menu Principal (📡 calculando...)")
+	}
+	lastPingMutex.RUnlock()
 	fmt.Println("==============================")
 	fmt.Println("1️⃣  - Registrar Jogador")
 	fmt.Println("2️⃣  - Login")
 	fmt.Println("3️⃣  - Abrir Pacote de Cartas")
 	fmt.Println("4️⃣  - Buscar Jogador")
 	fmt.Println("5️⃣  - Entrar na Fila")
-	fmt.Println("6️⃣  - Ver inventário")
-	fmt.Println("7️⃣  - Medir Ping")
+	fmt.Println("6️⃣  - Ver inventário/Atualizar Deck")
 	fmt.Println("0️⃣  - Sair")
 	fmt.Println("------------------------------")
 	fmt.Print("👉 Escolha a sua próxima ação: ")
@@ -682,8 +727,6 @@ func main_menu() {
 		enqueue(encoder)
 	case 6:
 		seeInventory()
-	case 7:
-		ping(encoder)
 	case 0:
 		fmt.Println("👋 Saindo do jogo... Até logo!")
 		return
@@ -700,20 +743,3 @@ func prompt(prompt string) string {
 	fmt.Scanln(&input)
 	return input
 }
-
-// func inputReader() {
-// 	for {
-// 		var action int
-// 		fmt.Scanln(&action)
-
-// 		if action == 99 {
-// 			action = 20
-// 		}
-
-// 		if !gameStart {
-// 			channel <- action
-// 		} else {
-// 			gameChannel <- action
-// 		}
-// 	}
-// }
