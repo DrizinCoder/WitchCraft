@@ -86,7 +86,6 @@ func (m *Match_Manager) Finish(matchID int) {
 	for i := range m.Matches {
 		if m.Matches[i].ID == matchID {
 			m.Matches[i].State = FINISHED
-			//Lembrar que ainda tem que tirar a partida finalizada da lista de matches ativos
 		}
 	}
 }
@@ -98,6 +97,19 @@ func (m *Match_Manager) NextTurn(match *Match) {
 		match.Turn = match.Player2.ID
 	} else {
 		match.Turn = match.Player1.ID
+	}
+}
+
+func (m *Match_Manager) RemoveFromQueue(playerID int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for i, p := range m.match_queue {
+		if p.ID == playerID {
+			m.match_queue = append(m.match_queue[:i], m.match_queue[i+1:]...)
+			fmt.Printf("❌ Jogador %d removido da fila\n", playerID)
+			return
+		}
 	}
 }
 

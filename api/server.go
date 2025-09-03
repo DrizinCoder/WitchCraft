@@ -462,6 +462,8 @@ func handleDisconnect(conn net.Conn) {
 
 	fmt.Printf("⚠️ Jogador %s desconectou.\n", player.UserName)
 
+	matchManager.RemoveFromQueue(player.ID)
+
 	if player.In_game {
 		match := matchManager.FindMatchByPlayerID(player.ID)
 		if match != nil {

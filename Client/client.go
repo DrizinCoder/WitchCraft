@@ -41,11 +41,18 @@ type payload struct {
 	Turn int    `json:"turn"`
 }
 
+const (
+	Reset  = "\033[0m"
+	Red    = "\033[31m"
+	Green  = "\033[32m"
+	Yellow = "\033[33m"
+	Cyan   = "\033[36m"
+	Bold   = "\033[1m"
+)
+
 var session_id int
-var start time.Time
 var encoder *json.Encoder
 var gamefinish bool
-var action int
 var gameStart bool
 
 var playerInventory []*Cards.Card
@@ -59,6 +66,9 @@ var gameTurnMutex sync.RWMutex
 
 var lastPing time.Duration
 var lastPingMutex sync.RWMutex
+
+var lastMsg string
+var lastMsgMutex sync.RWMutex
 
 func Setup() {
 
@@ -209,7 +219,7 @@ func loginPlayer(encoder *json.Encoder) {
 
 func openPack(encoder *json.Encoder) {
 	if session_id == 0 {
-		fmt.Println("❌ Opção inválida, você deve estar logado para completar essa ação")
+		setLastMsg("❌ Opção inválida, você deve estar logado para completar essa ação")
 		return
 	}
 
@@ -235,12 +245,12 @@ func searchPlayer(encoder *json.Encoder) {
 
 func enqueue(encoder *json.Encoder) {
 	if session_id == 0 {
-		fmt.Println("❌ Opção inválida, você deve estar logado para completar essa ação")
+		setLastMsg("❌ Opção inválida, você deve estar logado para completar essa ação")
 		return
 	}
 
 	if len(playerDeck) == 0 {
-		fmt.Println("❌ Opção inválida, você deve montar seu deck de jogo")
+		setLastMsg("❌ Opção inválida, você deve montar seu deck de jogo")
 		return
 	}
 
@@ -253,14 +263,14 @@ func enqueue(encoder *json.Encoder) {
 
 func seeInventory() {
 	if session_id == 0 {
-		fmt.Println("❌ Opção inválida, você deve estar logado para completar essa ação")
+		setLastMsg("❌ Opção inválida, você deve estar logado para completar essa ação")
 		return
 	}
 
 	playerInventoryMutex.RLock()
 	if len(playerInventory) == 0 {
 		playerInventoryMutex.RUnlock()
-		fmt.Println("Sem cartas no inventário.")
+		setLastMsg("Sem cartas no inventário.")
 		return
 	}
 
@@ -284,7 +294,7 @@ func seeInventory() {
 
 func chooseDeck(inventory []*Cards.Card) {
 	if len(inventory) < 3 {
-		fmt.Println("Você não tem cartas suficientes para montar um deck.")
+		setLastMsg("Você não tem cartas suficientes para montar um deck.")
 		return
 	}
 
@@ -341,7 +351,7 @@ func chooseDeck(inventory []*Cards.Card) {
 
 func play_card(encoder *json.Encoder) {
 	if len(playerDeck) == 0 {
-		fmt.Println("⚠️ Você precisa montar seu deck antes de jogar!")
+		setLastMsg("⚠️ Você precisa montar seu deck antes de jogar!")
 		return
 	}
 
@@ -693,23 +703,34 @@ func GameMenu(encoder *json.Encoder) {
 }
 
 func main_menu() {
-	fmt.Println("\n==============================")
+	fmt.Println(Cyan + "╔══════════════════════════════════╗" + Reset)
+	fmt.Println(Cyan + "║          🎮 WitchCraft           ║" + Reset)
+	fmt.Println(Cyan + "╠══════════════════════════════════╣" + Reset)
 	lastPingMutex.RLock()
 	if lastPing > 0 {
-		fmt.Printf(" 🎮 WitchCraft - Menu Principal (📡 %s)\n", lastPing)
+		fmt.Printf(Cyan+"║ 📡 Ping atual:%s%-19v║\n"+Reset, "", lastPing)
 	} else {
-		fmt.Println(" 🎮 WitchCraft - Menu Principal (📡 calculando...)")
+		fmt.Println(Cyan + "║ 📡 Ping atual: calculando...     ║" + Reset)
 	}
 	lastPingMutex.RUnlock()
-	fmt.Println("==============================")
-	fmt.Println("1️⃣  - Registrar Jogador")
-	fmt.Println("2️⃣  - Login")
-	fmt.Println("3️⃣  - Abrir Pacote de Cartas")
-	fmt.Println("4️⃣  - Buscar Jogador")
-	fmt.Println("5️⃣  - Entrar na Fila")
-	fmt.Println("6️⃣  - Ver inventário/Atualizar Deck")
-	fmt.Println("0️⃣  - Sair")
+	fmt.Println(Cyan + "╚══════════════════════════════════╝" + Reset)
+
+	fmt.Println(Yellow + "1️⃣  - Registrar Jogador" + Reset)
+	fmt.Println(Yellow + "2️⃣  - Login" + Reset)
+	fmt.Println(Yellow + "3️⃣  - Abrir Pacote de Cartas" + Reset)
+	fmt.Println(Yellow + "4️⃣  - Buscar Jogador" + Reset)
+	fmt.Println(Green + "5️⃣  - Entrar na Fila" + Reset)
+	fmt.Println(Yellow + "6️⃣  - Ver inventário / Atualizar Deck" + Reset)
+	fmt.Println(Red + "0️⃣  - Sair" + Reset)
 	fmt.Println("------------------------------")
+
+	// exibe a última mensagem
+	lastMsgMutex.RLock()
+	if lastMsg != "" {
+		fmt.Println(lastMsg)
+	}
+	lastMsgMutex.RUnlock()
+
 	fmt.Print("👉 Escolha a sua próxima ação: ")
 
 	var change int
@@ -735,6 +756,7 @@ func main_menu() {
 	default:
 		fmt.Println("❌ Opção inválida, tente novamente.")
 	}
+	clearScreen()
 }
 
 func prompt(prompt string) string {
@@ -742,4 +764,14 @@ func prompt(prompt string) string {
 	var input string
 	fmt.Scanln(&input)
 	return input
+}
+
+func clearScreen() {
+	fmt.Print("\033[H\033[2J")
+}
+
+func setLastMsg(msg string) {
+	lastMsgMutex.Lock()
+	lastMsg = msg
+	lastMsgMutex.Unlock()
 }

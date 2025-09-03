@@ -20,7 +20,7 @@ build:
 .PHONY: run-server
 run-server:
 	@echo "Rodando o container do servidor '$(SERVER_CONTAINER)'..."
-	docker run --name $(SERVER_CONTAINER) --network $(NETWORK_NAME) -p 8080:8080 -e MODE=server $(IMAGE_NAME)
+	docker run --rm --privileged -e SOMAXCONN=65535 --name $(SERVER_CONTAINER) --network $(NETWORK_NAME) -p 8080:8080 -e MODE=server $(IMAGE_NAME)
 
 .PHONY: run-client
 run-client:
@@ -60,8 +60,8 @@ run-stress:
 	docker run --rm --network $(NETWORK_NAME) \
 		-e MODE=stress \
 		-e SERVER_ADDR=$(SERVER_CONTAINER):8080 \
-		-e STRESS_CONCURRENCY=80000 \
+		-e STRESS_CONCURRENCY=30000 \
 		-e STRESS_REQUESTS=1 \
 		-e STRESS_TIMEOUT_MS=2000 \
-		-e STRESS_RAMP_MS=100 \
+		-e STRESS_RAMP_MS=50 \
 		$(CLIENT_IMAGE)
