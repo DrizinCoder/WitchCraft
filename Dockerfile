@@ -18,8 +18,11 @@ WORKDIR /root/
 COPY --from=builder /app/app .
 
 # Usa variável de ambiente MODE
+# Mudar aqui e UDP para máquina HOST
 ENV MODE=server
-ENV SERVER_ADDR=127.0.0.1:8080
-ENV UDP_SERVER_ADDR=server:9999
+ENV SERVER_ADDR=172.16.201.6:8080 
+ENV UDP_SERVER_ADDR=172.16.201.6:9999
+EXPOSE 8080
+EXPOSE 9999
 
 CMD ["./app"]

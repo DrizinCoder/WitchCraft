@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	mode := os.Getenv("MODE") // lê variável de ambiente
+	mode := os.Getenv("MODE")
 
 	switch mode {
 	case "server":

@@ -20,12 +20,12 @@ build:
 .PHONY: run-server
 run-server:
 	@echo "Rodando o container do servidor '$(SERVER_CONTAINER)'..."
-	docker run --rm --privileged -e SOMAXCONN=65535 --name $(SERVER_CONTAINER) --network $(NETWORK_NAME) -p 8080:8080 -e MODE=server $(IMAGE_NAME)
+	docker run --rm --privileged -e SOMAXCONN=65535 --name $(SERVER_CONTAINER) -p 8080:8080 -p 9999:9999/udp -e MODE=server $(IMAGE_NAME)
 
 .PHONY: run-client
 run-client:
 	@echo "Rodando o container do cliente..."
-	docker run -it --network $(NETWORK_NAME) -e MODE=client -e UDP_SERVER_ADDR=$(SERVER_CONTAINER):9999 -e SERVER_ADDR=$(SERVER_CONTAINER):8080 $(CLIENT_IMAGE)
+	docker run -it -e MODE=client $(CLIENT_IMAGE)
 
 .PHONY: rm-server
 rm-server:
@@ -57,11 +57,10 @@ help:
 .PHONY: run-stress
 run-stress:
 	@echo "Rodando stress test contra '$(SERVER_CONTAINER):8080'..."
-	docker run --rm --network $(NETWORK_NAME) \
+	docker run --rm\
 		-e MODE=stress \
-		-e SERVER_ADDR=$(SERVER_CONTAINER):8080 \
-		-e STRESS_CONCURRENCY=30000 \
+		-e STRESS_CONCURRENCY=15000 \
 		-e STRESS_REQUESTS=1 \
 		-e STRESS_TIMEOUT_MS=2000 \
-		-e STRESS_RAMP_MS=50 \
+		-e STRESS_RAMP_MS=0 \
 		$(CLIENT_IMAGE)

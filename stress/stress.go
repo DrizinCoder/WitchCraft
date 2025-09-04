@@ -169,7 +169,7 @@ func percentile(sorted []time.Duration, p float64) time.Duration {
 }
 
 func Run() {
-	addr := getenv("SERVER_ADDR", "witchcraft-server:8080")
+	addr := getenv("SERVER_ADDR", "172.16.201.6:8080")
 	concurrency := atoiEnv("STRESS_CONCURRENCY", "1000")
 	requestsPerConn := atoiEnv("STRESS_REQUESTS", "100")
 	timeout := durationMsEnv("STRESS_TIMEOUT_MS", "2000")
