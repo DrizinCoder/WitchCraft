@@ -128,7 +128,7 @@ func (m *Match_Manager) Match_Making() {
 			fmt.Println(player2.Conn.LocalAddr())
 			match := m.CreateMatch(player1, player2, NORMAL, WAITING, player1.ID)
 			m.Start(match.ID)
-			println("The game Start!")
+			println("The game Start! gameID: ", match.ID)
 			go m.Run_Game(match)
 		} else {
 			time.Sleep(50 * time.Millisecond)
@@ -213,43 +213,39 @@ func (m *Match_Manager) Run_Game(match *Match) {
 				fmt.Printf("Round: %d\n", match.Round)
 
 				if match.Round >= 3 {
-					m.Finish(match.ID)
-					if match.Round >= 3 {
-						match.State = FINISHED
+					match.State = FINISHED
 
-						var Winner *Player.Player
-						if player1_points > player2_points {
-							Winner = match.Player1
-						} else {
-							Winner = match.Player2
-						}
-
-						m.RemoveMatch(match.ID)
-
-						finalPayload1 := fmt.Sprintf("🛑 Partida finalizada. Vencedor: %s", Winner.UserName)
-						finalPayload2 := fmt.Sprintf("🛑 Partida finalizada. Vencedor: %s", Winner.UserName)
-
-						match.Player1.In_game = false
-						match.Player2.In_game = false
-
-						finalPayloadJSON1, _ := json.Marshal(finalPayload1)
-						finalPayloadJSON2, _ := json.Marshal(finalPayload2)
-
-						alert1 := Message{
-							Action: "game_finish",
-							Data:   finalPayloadJSON1,
-						}
-						alert2 := Message{
-							Action: "game_finish",
-							Data:   finalPayloadJSON2,
-						}
-
-						encoder1.Encode(alert1)
-						encoder2.Encode(alert2)
-
-						fmt.Println("FINALIZANDO PARTIDA !!!")
-						return
+					var Winner *Player.Player
+					if player1_points > player2_points {
+						Winner = match.Player1
+					} else {
+						Winner = match.Player2
 					}
+
+					m.RemoveMatch(match.ID)
+
+					finalPayload1 := fmt.Sprintf("🛑 Partida finalizada. Vencedor: %s", Winner.UserName)
+					finalPayload2 := fmt.Sprintf("🛑 Partida finalizada. Vencedor: %s", Winner.UserName)
+
+					match.Player1.In_game = false
+					match.Player2.In_game = false
+
+					finalPayloadJSON1, _ := json.Marshal(finalPayload1)
+					finalPayloadJSON2, _ := json.Marshal(finalPayload2)
+
+					alert1 := Message{
+						Action: "game_finish",
+						Data:   finalPayloadJSON1,
+					}
+					alert2 := Message{
+						Action: "game_finish",
+						Data:   finalPayloadJSON2,
+					}
+
+					encoder1.Encode(alert1)
+					encoder2.Encode(alert2)
+
+					fmt.Println("FINALIZANDO PARTIDA !!! id da partida:", match.ID)
 					return
 				}
 			}

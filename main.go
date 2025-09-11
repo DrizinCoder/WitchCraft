@@ -23,6 +23,9 @@ func main() {
 	case "stress":
 		fmt.Println("Iniciando teste de estresse...")
 		stress.Run()
+	case "stress_match":
+		fmt.Println("Iniciando teste de estresse...")
+		stress.RunMatch()
 	default:
 		fmt.Println("Defina a variável MODE com 'server' ou 'client'")
 	}

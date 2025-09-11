@@ -59,8 +59,19 @@ run-stress:
 	@echo "Rodando stress test contra '$(SERVER_CONTAINER):8080'..."
 	docker run --rm\
 		-e MODE=stress \
-		-e STRESS_CONCURRENCY=15000 \
+		-e STRESS_CONCURRENCY=10000 \
 		-e STRESS_REQUESTS=1 \
 		-e STRESS_TIMEOUT_MS=2000 \
+		-e STRESS_RAMP_MS=0 \
+		$(CLIENT_IMAGE)
+
+.PHONY: run-stress_match
+run-stress_match:
+	@echo "Rodando stress test contra '$(SERVER_CONTAINER):8080'..."
+	docker run --rm\
+		-e MODE=stress_match \
+		-e STRESS_CONCURRENCY=100 \
+		-e STRESS_REQUESTS=1 \
+		-e STRESS_TIMEOUT_MS=30000 \
 		-e STRESS_RAMP_MS=0 \
 		$(CLIENT_IMAGE)

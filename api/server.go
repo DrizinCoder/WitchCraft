@@ -230,7 +230,7 @@ func openPackHandler(msg Message, encoder *json.Encoder) {
 	pack, err := playerManager.Open_pack(r.PlayerID, stock)
 
 	if err != nil {
-		encoder.Encode(map[string]string{"error": err.Error()})
+		send_error(err, encoder)
 		return
 	}
 
@@ -491,6 +491,8 @@ func handleDisconnect(conn net.Conn) {
 			}
 
 			matchManager.RemoveMatch(match.ID)
+
+			fmt.Println("FINALIZANDO PARTIDA !!! id da partida:", match.ID)
 		}
 	}
 
