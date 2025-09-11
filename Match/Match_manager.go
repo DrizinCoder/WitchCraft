@@ -115,6 +115,7 @@ func (m *Match_Manager) RemoveFromQueue(playerID int) {
 
 func (m *Match_Manager) Match_Making() {
 	for {
+		m.mu.Lock()
 		if len(m.match_queue) >= 2 {
 			player1, err1 := m.Dequeue()
 			player2, err2 := m.Dequeue()
@@ -124,13 +125,15 @@ func (m *Match_Manager) Match_Making() {
 
 			player1.In_game = true
 			player2.In_game = true
+			m.mu.Unlock()
 			fmt.Println(player1.Conn.LocalAddr())
 			fmt.Println(player2.Conn.LocalAddr())
 			match := m.CreateMatch(player1, player2, NORMAL, WAITING, player1.ID)
 			m.Start(match.ID)
 			println("The game Start!")
-			go m.Run_Game(match) //  Go routine que tomará conta do jogo
+			go m.Run_Game(match)
 		} else {
+			m.mu.Unlock()
 			time.Sleep(50 * time.Millisecond)
 		}
 	}

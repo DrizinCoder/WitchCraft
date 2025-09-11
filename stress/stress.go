@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -20,6 +21,30 @@ type result struct {
 	latency time.Duration
 	err     error
 }
+
+// ===== Controle de duplicatas globais =====
+var (
+	globalSeenCards = make(map[int]string) // ID -> Nome
+	globalCardsMu   sync.Mutex
+	duplicateCount  int64
+	dupStats        = make(map[int]int) // ID -> vezes que apareceu
+)
+
+func checkDuplicate(workerID int, cardID int, cardName string) {
+	globalCardsMu.Lock()
+	defer globalCardsMu.Unlock()
+
+	if _, exists := globalSeenCards[cardID]; exists {
+		fmt.Printf("⚠️  Duplicata detectada pelo worker %d: %d (%s)\n", workerID, cardID, cardName)
+		atomic.AddInt64(&duplicateCount, 1)
+		dupStats[cardID]++
+	} else {
+		globalSeenCards[cardID] = cardName
+		dupStats[cardID] = 1
+	}
+}
+
+// ==========================================
 
 func getenv(key, def string) string {
 	if v := os.Getenv(key); v != "" {
@@ -109,7 +134,7 @@ func worker(id int, addr string, requestsPerConn int, timeout time.Duration, out
 		return
 	}
 
-	// extrai player id do response (para usar no open_pack)
+	// extrai player id do response
 	var loginResp struct {
 		ID int `json:"id"`
 	}
@@ -119,7 +144,7 @@ func worker(id int, addr string, requestsPerConn int, timeout time.Duration, out
 	}
 	playerID := loginResp.ID
 
-	// 3) repetir open_pack requestsPerConn vezes (medimos estas latências)
+	// 3) repetir open_pack requestsPerConn vezes
 	openReq := Message{
 		Action: "open_pack",
 		Data:   toRaw(map[string]int{"id": playerID}),
@@ -144,11 +169,24 @@ func worker(id int, addr string, requestsPerConn int, timeout time.Duration, out
 			return
 		}
 
+		var cards []struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal(resp.Data, &cards); err != nil {
+			out <- result{err: fmt.Errorf("worker %d unmarshal open_pack response: %w", id, err)}
+			return
+		}
+
+		// checar duplicatas globais
+		for _, c := range cards {
+			checkDuplicate(id, c.ID, c.Name)
+		}
 		out <- result{latency: time.Since(start)}
 	}
 }
 
-// helper: converte payload para json.RawMessage (ignora erro — payloads são simples)
+// helper
 func toRaw(v interface{}) json.RawMessage {
 	b, _ := json.Marshal(v)
 	return json.RawMessage(b)
@@ -233,4 +271,9 @@ func Run() {
 		fmt.Printf("Média: %v | p50: %v | p90: %v | p99: %v\n", avg, p50, p90, p99)
 		fmt.Printf("Throughput: %.2f req/s (QPS)\n", qps)
 	}
+
+	// ===== LOG de duplicatas =====
+	fmt.Printf("\n=== Análise de Cartas ===\n")
+	fmt.Printf("🔁 Cartas duplicadas detectadas: %d\n", atomic.LoadInt64(&duplicateCount))
+	fmt.Printf("📦 Total de cartas únicas vistas: %d\n", len(globalSeenCards))
 }

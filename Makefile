@@ -25,7 +25,7 @@ run-server:
 .PHONY: run-client
 run-client:
 	@echo "Rodando o container do cliente..."
-	docker run -it -e MODE=client $(CLIENT_IMAGE)
+	docker run -it --network=host -e MODE=client $(CLIENT_IMAGE)
 
 .PHONY: rm-server
 rm-server:
