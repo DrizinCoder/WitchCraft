@@ -11,12 +11,9 @@ import (
 	"time"
 )
 
-// ===== Controle de duplicatas de match =====
-var (
-	globalMatches = make(map[int]int) // playerID -> matchID
-)
-
 // ==========================================
+
+var matches int
 
 func getenvMatch(key, def string) string {
 	if v := os.Getenv(key); v != "" {
@@ -170,6 +167,7 @@ func workerMatches(id int, addr string, matchesPerWorker int, timeout time.Durat
 
 				// Conta match
 				matchesCreated++
+				matches++
 				out <- result{latency: time.Since(start)}
 				conn.Close()
 			case "error_response":
@@ -253,5 +251,6 @@ func RunMatch() {
 	}
 
 	fmt.Printf("\n=== Análise de Match ===\n")
-	fmt.Printf("📦 Total de jogadores pareados: %d\n", len(globalMatches))
+	fmt.Printf("📦 Total de jogadores pareados: %d\n", matches)
+	fmt.Printf("Total de partidas criadas: %d\n", matches/2)
 }
