@@ -4,6 +4,7 @@ import (
 	"WitchCraft/Cards"
 	match "WitchCraft/Match"
 	"WitchCraft/Player"
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -83,7 +84,7 @@ func Setup() {
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	decoder := json.NewDecoder(conn)
+	decoder := json.NewDecoder(bufio.NewReader(conn))
 	encoder := json.NewEncoder(conn)
 
 	for {

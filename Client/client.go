@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -532,7 +533,7 @@ func handleEnqueueResponse(data json.RawMessage) {
 		fmt.Println("Erro ao decodificar pacote de dados")
 	}
 
-	fmt.Println(resp["Player enqueued"])
+	fmt.Println(resp["Player enqueued"], " Entrou na fila de pareamento!")
 }
 
 func handleErrorResponse(data json.RawMessage) {
@@ -694,7 +695,7 @@ func GameMenu(encoder *json.Encoder) {
 				play_card(encoder)
 			}
 		case 0:
-			fmt.Println("↩️ Voltando ao menu principal...")
+			fmt.Println("esperando jogada...")
 			return
 		default:
 			fmt.Println("❌ Opção inválida. Tente novamente.")
@@ -721,7 +722,6 @@ func main_menu() {
 	fmt.Println(Yellow + "4️⃣  - Buscar Jogador" + Reset)
 	fmt.Println(Green + "5️⃣  - Entrar na Fila" + Reset)
 	fmt.Println(Yellow + "6️⃣  - Ver inventário / Atualizar Deck" + Reset)
-	fmt.Println(Red + "0️⃣  - Sair" + Reset)
 	fmt.Println("------------------------------")
 
 	// exibe a última mensagem
@@ -731,11 +731,21 @@ func main_menu() {
 	}
 	lastMsgMutex.RUnlock()
 
+	var input string
 	fmt.Print("👉 Escolha a sua próxima ação: ")
+	fmt.Scanln(&input)
 
-	var change int
-	fmt.Scanln(&change)
-	switch change {
+	if input == "" {
+		return
+	}
+
+	choice, err := strconv.Atoi(input)
+	if err != nil {
+		fmt.Println("❌ Opção inválida — digite um número.")
+		return
+	}
+
+	switch choice {
 	case 1:
 		createPlayer(encoder)
 	case 2:
@@ -748,11 +758,10 @@ func main_menu() {
 		enqueue(encoder)
 	case 6:
 		seeInventory()
-	case 0:
-		fmt.Println("👋 Saindo do jogo... Até logo!")
-		return
 	case 99:
 		GameMenu(encoder)
+	case 0:
+		fmt.Println("")
 	default:
 		fmt.Println("❌ Opção inválida, tente novamente.")
 	}

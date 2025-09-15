@@ -249,8 +249,4 @@ func RunMatch() {
 		fmt.Printf("Média: %v | p50: %v | p90: %v | p99: %v\n", avg, p50, p90, p99)
 		fmt.Printf("Throughput: %.2f req/s (QPS)\n", qps)
 	}
-
-	fmt.Printf("\n=== Análise de Match ===\n")
-	fmt.Printf("📦 Total de jogadores pareados: %d\n", matches)
-	fmt.Printf("Total de partidas criadas: %d\n", matches/2)
 }
