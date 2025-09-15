@@ -67,6 +67,7 @@ Este repositório contém o projeto Witchcraft em Go, que pode ser executado em 
 2. Definir esse IP na variável de ambiente `SERVER_ADDR` `SERVER_ADDR_UDP` do Dockerfile ou via `docker run`.
 3. Rodar:
    ```bash
+   make build
    make run-stres (ou make run-stress_match)
    ```
 
