@@ -39,7 +39,6 @@ func (m *Manager) Create_Player(name string, login string, password string) (*Pl
 	}
 
 	_, exists := m.PlayersByLogin[login]
-
 	if exists {
 		return nil, errors.New("login already exists")
 	}
@@ -77,18 +76,20 @@ func (m *Manager) Search_Player_ByID(id int) (*Player, error) {
 
 func (m *Manager) Open_pack(PlayerId int, stock *Cards.Stock) ([]*Cards.Card, error) {
 
-	player, err := m.Search_Player_ByID(PlayerId)
-	if err != nil {
-		return nil, err
-	}
-
 	pack, err := stock.GeneratePack()
 	if err != nil {
 		return nil, err
 	}
 
-	player.Cards = append(player.Cards, pack...)
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
+	player, exists := m.PlayersByID[PlayerId]
+	if !exists {
+		return nil, errors.New("user not found")
+	}
+
+	player.Cards = append(player.Cards, pack...)
 	return pack, nil
 }
 
@@ -104,21 +105,62 @@ func (m *Manager) Search_Player_ByLogin(login string) (*Player, error) {
 }
 
 func (m *Manager) Get_inventory(PlayerID int) ([]*Cards.Card, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	player, exists := m.Search_Player_ByID(PlayerID)
-	if exists != nil {
+	player, exists := m.PlayersByID[PlayerID]
+	if !exists {
 		return nil, errors.New("user not found")
 	}
 
-	return player.Cards, nil
+	result := make([]*Cards.Card, len(player.Cards))
+	copy(result, player.Cards)
+	return result, nil
 }
 
 func (m *Manager) Get_deck(PlayerID int) ([]*Cards.Card, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	player, exists := m.Search_Player_ByID(PlayerID)
-	if exists != nil {
+	player, exists := m.PlayersByID[PlayerID]
+	if !exists {
 		return nil, errors.New("user not found")
 	}
 
-	return player.GameDeck, nil
+	result := make([]*Cards.Card, len(player.GameDeck))
+	copy(result, player.GameDeck)
+	return result, nil
+}
+
+func (m *Manager) SetDeck(playerID int, deck []*Cards.Card) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	player, exists := m.PlayersByID[playerID]
+	if !exists {
+		return errors.New("user not found")
+	}
+
+	type cardKey struct {
+		Name        string
+		Power       int
+		Life        int
+		Inteligence int
+		Rarity      Cards.Rare
+	}
+
+	invSet := make(map[cardKey]struct{}, len(player.Cards))
+	for _, c := range player.Cards {
+		invSet[cardKey{c.Name, c.Power, c.Life, c.Inteligence, c.Rarity}] = struct{}{}
+	}
+
+	for _, dc := range deck {
+		key := cardKey{dc.Name, dc.Power, dc.Life, dc.Inteligence, dc.Rarity}
+		if _, ok := invSet[key]; !ok {
+			return errors.New("uma ou mais cartas do deck não estão no inventário")
+		}
+	}
+
+	player.GameDeck = deck
+	return nil
 }
