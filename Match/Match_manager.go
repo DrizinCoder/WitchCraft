@@ -7,13 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 )
 
 type Queue []*Player.Player
 
 type Match_Manager struct {
 	mu          sync.Mutex
+	cond        *sync.Cond // sinaliza quando um jogador entra na fila
 	match_queue Queue
 	Matches     []*Match
 }
@@ -39,10 +39,12 @@ func generateID() int {
 }
 
 func NewMatchManager() *Match_Manager {
-	return &Match_Manager{
+	mm := &Match_Manager{
 		Matches:     make([]*Match, 0),
 		match_queue: make(Queue, 0),
 	}
+	mm.cond = sync.NewCond(&mm.mu)
+	return mm
 }
 
 func (m *Match_Manager) CreateMatch(player1 *Player.Player, player2 *Player.Player, TYpe MatchType, state MatchState, turn int) *Match {
@@ -53,7 +55,6 @@ func (m *Match_Manager) CreateMatch(player1 *Player.Player, player2 *Player.Play
 	m.Matches = append(m.Matches, match)
 
 	return match
-
 }
 
 func (m *Match_Manager) RemoveMatch(matchID int) {
@@ -115,27 +116,30 @@ func (m *Match_Manager) RemoveFromQueue(playerID int) {
 
 func (m *Match_Manager) Match_Making() {
 	for {
-		if len(m.match_queue) >= 2 {
-			player1, err1 := m.Dequeue()
-			player2, err2 := m.Dequeue()
-			if err1 != nil || err2 != nil {
-				continue
-			}
-
-			player1.In_game = true
-			player2.In_game = true
-			fmt.Println(player1.Conn.LocalAddr())
-			fmt.Println(player2.Conn.LocalAddr())
-			match := m.CreateMatch(player1, player2, NORMAL, WAITING, player1.ID)
-			m.Start(match.ID)
-			println("The game Start! gameID: ", match.ID)
-			go m.Run_Game(match)
-		} else {
-			time.Sleep(50 * time.Millisecond)
+		m.mu.Lock()
+		// Bloqueia sem consumir CPU até que haja >= 2 jogadores na fila
+		for len(m.match_queue) < 2 {
+			m.cond.Wait()
 		}
+		player1 := m.match_queue[0]
+		player2 := m.match_queue[1]
+		m.match_queue = m.match_queue[2:]
+		m.mu.Unlock()
+
+		player1.In_game = true
+		player2.In_game = true
+
+		fmt.Println(player1.Conn.LocalAddr())
+		fmt.Println(player2.Conn.LocalAddr())
+
+		match := m.CreateMatch(player1, player2, NORMAL, WAITING, player1.ID)
+		m.Start(match.ID)
+		fmt.Println("The game Start! gameID:", match.ID)
+		go m.Run_Game(match)
 	}
 }
 
+// Enqueue adiciona um jogador à fila e sinaliza o matchmaker.
 func (m *Match_Manager) Enqueue(val *Player.Player) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -151,7 +155,8 @@ func (m *Match_Manager) Enqueue(val *Player.Player) error {
 	}
 
 	m.match_queue = append(m.match_queue, val)
-	println("Empilhando jogador" + val.UserName)
+	fmt.Println("Empilhando jogador", val.UserName)
+	m.cond.Signal() // acorda o Match_Making se estiver esperando
 	return nil
 }
 
@@ -164,123 +169,94 @@ func (m *Match_Manager) Dequeue() (*Player.Player, error) {
 
 	val := (m.match_queue)[0]
 	m.match_queue = (m.match_queue)[1:]
-	println("removendo jogador")
 	return val, nil
 }
 
 func (m *Match_Manager) Run_Game(match *Match) {
-	encoder1 := json.NewEncoder(match.Player1.Conn)
-	encoder2 := json.NewEncoder(match.Player2.Conn)
-
 	Data1 := generatePayload(match.Player2.UserName, match.Turn)
 	Data2 := generatePayload(match.Player1.UserName, match.Turn)
 	Data1_json, _ := json.Marshal(Data1)
 	Data2_json, _ := json.Marshal(Data2)
 
-	alert1 := Message{
-		Action: "Game_start",
-		Data:   Data1_json,
-	}
+	alert1 := Message{Action: "Game_start", Data: Data1_json}
+	alert2 := Message{Action: "Game_start", Data: Data2_json}
 
-	alert2 := Message{
-		Action: "Game_start",
-		Data:   Data2_json,
-	}
+	_ = match.Player1.Send(alert1)
+	_ = match.Player2.Send(alert2)
 
-	encoder1.Encode(alert1)
-	encoder2.Encode(alert2)
-
-	player1_play := false
-	player2_play := false
-	player1_points := 0
-	player2_points := 0
+	var player1_play, player2_play bool
+	var player1_points, player2_points int
 
 	for match.State == RUNNING {
-		select {
-		case msg := <-match.MatchChan:
-			m.processAction(match, msg, encoder1, encoder2, &player1_play, &player2_play)
-		default:
-			if player1_play && player2_play {
-				player1_play = false
-				player2_play = false
+		// Bloqueante: aguarda a próxima ação sem consumir CPU
+		msg := <-match.MatchChan
+		m.processAction(match, msg, &player1_play, &player2_play)
 
-				m.processBattle(match, encoder1, encoder2, &player1_points, &player2_points)
+		if player1_play && player2_play {
+			player1_play = false
+			player2_play = false
 
-				match.Round++
-				match.PlayedCard1 = nil
-				match.PlayedCard2 = nil
+			m.processBattle(match, &player1_points, &player2_points)
 
-				fmt.Printf("Round: %d\n", match.Round)
+			match.Round++
+			match.PlayedCard1 = nil
+			match.PlayedCard2 = nil
 
-				if match.Round >= 3 {
-					match.State = FINISHED
+			fmt.Printf("Round: %d\n", match.Round)
 
-					var Winner *Player.Player
-					if player1_points > player2_points {
-						Winner = match.Player1
-					} else {
-						Winner = match.Player2
-					}
+			if match.Round >= 3 {
+				match.State = FINISHED
 
-					m.RemoveMatch(match.ID)
-
-					finalPayload1 := fmt.Sprintf("🛑 Partida finalizada. Vencedor: %s", Winner.UserName)
-					finalPayload2 := fmt.Sprintf("🛑 Partida finalizada. Vencedor: %s", Winner.UserName)
-
-					match.Player1.In_game = false
-					match.Player2.In_game = false
-
-					finalPayloadJSON1, _ := json.Marshal(finalPayload1)
-					finalPayloadJSON2, _ := json.Marshal(finalPayload2)
-
-					alert1 := Message{
-						Action: "game_finish",
-						Data:   finalPayloadJSON1,
-					}
-					alert2 := Message{
-						Action: "game_finish",
-						Data:   finalPayloadJSON2,
-					}
-
-					encoder1.Encode(alert1)
-					encoder2.Encode(alert2)
-
-					fmt.Println("FINALIZANDO PARTIDA !!! id da partida:", match.ID)
-					return
+				var Winner *Player.Player
+				if player1_points > player2_points {
+					Winner = match.Player1
+				} else {
+					Winner = match.Player2
 				}
+
+				m.RemoveMatch(match.ID)
+
+				finalMsg := fmt.Sprintf("🛑 Partida finalizada. Vencedor: %s", Winner.UserName)
+				finalJSON, _ := json.Marshal(finalMsg)
+
+				match.Player1.In_game = false
+				match.Player2.In_game = false
+
+				gameFinish := Message{Action: "game_finish", Data: finalJSON}
+				_ = match.Player1.Send(gameFinish)
+				_ = match.Player2.Send(gameFinish)
+
+				fmt.Println("FINALIZANDO PARTIDA !!! id da partida:", match.ID)
+				return
 			}
 		}
 	}
-
 }
 
-func (m *Match_Manager) processAction(match *Match, msg Match_Message, encoder1 *json.Encoder, encoder2 *json.Encoder, p1p *bool, p2p *bool) {
+func (m *Match_Manager) processAction(match *Match, msg Match_Message, p1p *bool, p2p *bool) {
 	switch msg.Action {
 	case "play_card":
-		// 1) Checar se é o turno do jogador
 		if msg.PlayerId != match.Turn {
-			// Opcional: responder só para quem tentou jogar fora do turno
 			notYourTurn := generatePayload("❌ Não é seu turno.", match.Turn)
 			nytb, _ := json.Marshal(notYourTurn)
-			target := encoder1
+			target := match.Player1
 			if match.Player2.ID == msg.PlayerId {
-				target = encoder2
+				target = match.Player2
 			}
-			_ = target.Encode(Message{Action: "game_response", Data: nytb})
+			_ = target.Send(Message{Action: "game_response", Data: nytb})
 			return
 		}
 
-		// 2) Bloquear segunda jogada na mesma rodada
 		if msg.PlayerId == match.Player1.ID && *p1p {
 			already := generatePayload("❌ Você já jogou nesta rodada.", match.Turn)
 			ab, _ := json.Marshal(already)
-			_ = encoder1.Encode(Message{Action: "game_response", Data: ab})
+			_ = match.Player1.Send(Message{Action: "game_response", Data: ab})
 			return
 		}
 		if msg.PlayerId == match.Player2.ID && *p2p {
 			already := generatePayload("❌ Você já jogou nesta rodada.", match.Turn)
 			ab, _ := json.Marshal(already)
-			_ = encoder2.Encode(Message{Action: "game_response", Data: ab})
+			_ = match.Player2.Send(Message{Action: "game_response", Data: ab})
 			return
 		}
 
@@ -289,8 +265,7 @@ func (m *Match_Manager) processAction(match *Match, msg Match_Message, encoder1 
 			Atribute string      `json:"atribute"`
 		}
 
-		err := json.Unmarshal(msg.Data, &play)
-		if err != nil {
+		if err := json.Unmarshal(msg.Data, &play); err != nil {
 			fmt.Println("Erro ao decodificar carta jogada:", err)
 			return
 		}
@@ -299,26 +274,22 @@ func (m *Match_Manager) processAction(match *Match, msg Match_Message, encoder1 
 		atribute := play.Atribute
 
 		if msg.PlayerId == match.Player1.ID {
-			// player1 jogou
 			match.PlayedCard1 = &PlayedCard{Card: *card, Atribute: atribute}
 			*p1p = true
-
 			m.NextTurn(match)
-			m.sendToPlayer(encoder1, match.Turn)        // envia "aguarde" para o player1
-			m.sendToOpponent(msg, encoder2, match.Turn) // envia carta para player2
+			m.sendToPlayer(match.Player1, match.Turn)
+			m.sendToOpponent(msg, match.Player2, match.Turn)
 		} else {
-			// player2 jogou
 			match.PlayedCard2 = &PlayedCard{Card: *card, Atribute: atribute}
 			*p2p = true
-
 			m.NextTurn(match)
-			m.sendToPlayer(encoder2, match.Turn)        // envia "aguarde" para player2
-			m.sendToOpponent(msg, encoder1, match.Turn) // envia carta para player1
+			m.sendToPlayer(match.Player2, match.Turn)
+			m.sendToOpponent(msg, match.Player1, match.Turn)
 		}
 	}
 }
 
-func (m *Match_Manager) processBattle(match *Match, encoder1 *json.Encoder, encoder2 *json.Encoder, player1_points *int, player2_points *int) {
+func (m *Match_Manager) processBattle(match *Match, player1_points *int, player2_points *int) {
 	card1 := match.PlayedCard1
 	card2 := match.PlayedCard2
 
@@ -328,7 +299,6 @@ func (m *Match_Manager) processBattle(match *Match, encoder1 *json.Encoder, enco
 	}
 
 	var val1, val2 int
-
 	switch card1.Atribute {
 	case "Poder":
 		val1 = card1.Card.Power
@@ -362,13 +332,9 @@ func (m *Match_Manager) processBattle(match *Match, encoder1 *json.Encoder, enco
 	data := generatePayload(result, match.Turn)
 	data_json, _ := json.Marshal(data)
 
-	payload := Message{
-		Action: "game_response",
-		Data:   data_json,
-	}
-
-	encoder1.Encode(payload)
-	encoder2.Encode(payload)
+	battleResult := Message{Action: "game_response", Data: data_json}
+	_ = match.Player1.Send(battleResult)
+	_ = match.Player2.Send(battleResult)
 }
 
 func (m *Match_Manager) FindMatchByPlayerID(playerId int) *Match {
@@ -383,7 +349,7 @@ func (m *Match_Manager) FindMatchByPlayerID(playerId int) *Match {
 	return nil
 }
 
-func (m *Match_Manager) sendToOpponent(msg Match_Message, encoder *json.Encoder, turn int) {
+func (m *Match_Manager) sendToOpponent(msg Match_Message, opponent *Player.Player, turn int) {
 	type PlayedCard struct {
 		Card struct {
 			Name        string     `json:"name"`
@@ -396,8 +362,7 @@ func (m *Match_Manager) sendToOpponent(msg Match_Message, encoder *json.Encoder,
 	}
 
 	var played PlayedCard
-	err := json.Unmarshal(msg.Data, &played)
-	if err != nil {
+	if err := json.Unmarshal(msg.Data, &played); err != nil {
 		fmt.Println("❌ Erro ao decodificar jogada:", err)
 		return
 	}
@@ -415,40 +380,24 @@ func (m *Match_Manager) sendToOpponent(msg Match_Message, encoder *json.Encoder,
 		}
 	}
 
-	initial := fmt.Sprintf("\n🃏 %s jogou a carta: %s (Power: %d | Life: %d | Inteligência: %d | Raridade: %s)\n🔰 Atributo escolhido: %s\n",
-		playerName, card.Name, card.Power, card.Life, card.Inteligence, card.Rarity, attr)
+	info := fmt.Sprintf(
+		"\n🃏 %s jogou a carta: %s (Power: %d | Life: %d | Inteligência: %d | Raridade: %s)\n🔰 Atributo escolhido: %s\n",
+		playerName, card.Name, card.Power, card.Life, card.Inteligence, card.Rarity, attr,
+	)
 
-	data := generatePayload(initial, turn)
-
+	data := generatePayload(info, turn)
 	data_json, _ := json.Marshal(data)
 
-	payload := Message{
-		Action: "game_response",
-		Data:   data_json,
-	}
-
-	_ = encoder.Encode(payload)
+	_ = opponent.Send(Message{Action: "game_response", Data: data_json})
 }
 
-func (m *Match_Manager) sendToPlayer(encoder *json.Encoder, turn int) {
-	initial := "\n✅ Aguarde o oponente.\n"
-	data := generatePayload(initial, turn)
-
+func (m *Match_Manager) sendToPlayer(player *Player.Player, turn int) {
+	info := "\n✅ Aguarde o oponente.\n"
+	data := generatePayload(info, turn)
 	data_json, _ := json.Marshal(data)
-
-	payload := Message{
-		Action: "game_response",
-		Data:   data_json,
-	}
-
-	_ = encoder.Encode(payload)
+	_ = player.Send(Message{Action: "game_response", Data: data_json})
 }
 
 func generatePayload(info string, turn int) payload {
-	Data := payload{
-		Info: info,
-		Turn: turn,
-	}
-
-	return Data
+	return payload{Info: info, Turn: turn}
 }
