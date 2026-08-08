@@ -69,7 +69,6 @@ func Setup() {
 	defer listener.Close()
 
 	for {
-		fmt.Println(len(stock.Deck))
 		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Println("Erro ao conectar:", err)
@@ -284,49 +283,23 @@ func getPlayerHandler(msg Message, encoder *json.Encoder) {
 }
 
 func setDeckHandler(msg Message, encoder *json.Encoder) {
-	// Estrutura esperada do cliente
 	type req struct {
 		PlayerID int           `json:"player_id"`
 		Deck     []*Cards.Card `json:"deck"`
 	}
 
 	var r req
-	err := json.Unmarshal(msg.Data, &r)
-	if err != nil {
+	if err := json.Unmarshal(msg.Data, &r); err != nil {
 		send_error(err, encoder)
 		return
 	}
 
-	// Busca o jogador
-	player, err := playerManager.Search_Player_ByID(r.PlayerID)
-	if err != nil {
+	// Delega validação e atribuição para o manager (O(n), thread-safe)
+	if err := playerManager.SetDeck(r.PlayerID, r.Deck); err != nil {
 		send_error(err, encoder)
 		return
 	}
 
-	// Valida se todas as cartas do deck estão no inventário do jogador
-	for _, deckCard := range r.Deck {
-		found := false
-		for _, invCard := range player.Cards {
-			if deckCard.Name == invCard.Name &&
-				deckCard.Power == invCard.Power &&
-				deckCard.Life == invCard.Life &&
-				deckCard.Inteligence == invCard.Inteligence &&
-				deckCard.Rarity == invCard.Rarity {
-				found = true
-				break
-			}
-		}
-		if !found {
-			send_error(errors.New("uma ou mais cartas do deck não estão no inventário"), encoder)
-			return
-		}
-	}
-
-	// Atualiza o deck do jogador
-	player.GameDeck = r.Deck
-
-	// Resposta de sucesso
 	payload := map[string]string{"success": "deck definido com sucesso"}
 	data, _ := json.Marshal(payload)
 	final_msg := Message{
@@ -384,13 +357,12 @@ func gameAction(msg Message) {
 		Payload  json.RawMessage `json:"data"`
 	}
 	var r req
-	json.Unmarshal(msg.Data, &r)
-
-	fmt.Println("Recebi Game_Action:", string(msg.Data))
+	if err := json.Unmarshal(msg.Data, &r); err != nil {
+		fmt.Println("Erro ao decodificar Game_Action:", err)
+		return
+	}
 
 	match1 := matchManager.FindMatchByPlayerID(r.PlayerID)
-	fmt.Println(match1)
-	fmt.Println("Procurando match para player:", r.PlayerID)
 	if match1 != nil {
 		match1.MatchChan <- match.Match_Message{
 			PlayerId: r.PlayerID,
@@ -498,7 +470,7 @@ func handleDisconnect(conn net.Conn) {
 	}
 
 	logged_players_mutex.Lock()
-	delete(logged_players, player.UserName)
+	delete(logged_players, player.Login)
 	delete(connToPlayer, conn)
 	logged_players_mutex.Unlock()
 }

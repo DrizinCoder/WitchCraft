@@ -55,7 +55,7 @@ func New_match(id int, player1 *Player.Player, player2 *Player.Player, TYpe Matc
 		Type:      TYpe,
 		State:     state,
 		Turn:      turn,
-		MatchChan: make(chan Match_Message, 1),
+		MatchChan: make(chan Match_Message, 10),
 	}
 }
 
